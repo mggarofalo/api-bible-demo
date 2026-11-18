@@ -74,7 +74,7 @@ API.Bible gives a `fumsToken` in the `meta` of each response that contains Scrip
 - A response has one token, also when the request has the `parallels` parameter. The token of such a response names the main Bible and each parallel Bible, so one report is sufficient for the page. Search responses also have a token, and the demo reports it.
 - The demo has no users, so it gives FUMS a fixed sample user ID. A real application gives the ID of the logged-in user, without personal data, or no ID.
 
-A small panel at the bottom right of the window shows each report as four steps: the token from the API, the call to the script, the IDs that the script added (device, session and user), and the request to the FUMS server. The reports are real reports for the API calls of your key.
+A small panel at the bottom right of the window shows each report as four steps: the token from the API, the call to the script, the IDs that the script added (device, session and user), and the request to the FUMS server. The panel learns about the request from the list of network requests that the browser keeps. Its header tells how many reports the script sent and how many still wait for their request. If no request comes within 5 seconds, the last two steps show as not done. A content blocker often stops the FUMS script. The browser does not show the status of a request to a different site, so the panel can tell that the script sent a report but not that the server accepted it. The reports are real reports for the API calls of your key.
 
 ### Keeping the Demo in Sync
 

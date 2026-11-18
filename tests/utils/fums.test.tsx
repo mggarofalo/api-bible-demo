@@ -64,8 +64,21 @@ describe("FUMS_SHIM_SCRIPT", () => {
 describe("fumsStore", () => {
   it("starts empty and the server snapshot is the same empty state", () => {
     const snapshot = fums.fumsStore.getSnapshot();
-    expect(snapshot).toEqual({ reports: [], activeToken: null });
+    expect(snapshot).toEqual({
+      reports: [],
+      activeToken: null,
+      reported: 0,
+      sent: 0,
+    });
     expect(fums.fumsStore.getServerSnapshot()).toBe(snapshot);
+  });
+
+  it("gives the same snapshot when the active token reports again within one second", () => {
+    vi.spyOn(Date, "now").mockReturnValue(10_000);
+    fums.reportFumsToken("a", "/a", false);
+    const first = fums.fumsStore.getSnapshot();
+    fums.reportFumsToken("a", "/a", false);
+    expect(fums.fumsStore.getSnapshot()).toBe(first);
   });
 
   it("gives the same snapshot object while nothing changes", () => {
@@ -85,6 +98,8 @@ describe("fumsStore", () => {
     expect(fums.fumsStore.getServerSnapshot()).toEqual({
       reports: [],
       activeToken: null,
+      reported: 0,
+      sent: 0,
     });
   });
 
@@ -115,21 +130,40 @@ describe("fumsStore", () => {
 
 describe("reportFumsToken", () => {
   it("sends the token to the FUMS script and records a report", () => {
+    vi.spyOn(Date, "now").mockReturnValue(10_000);
     window.fums = vi.fn();
     fums.reportFumsToken("token-1", "/bibles/1", false);
 
     expect(window.fums).toHaveBeenCalledWith("trackView", "token-1");
     expect(fums.fumsStore.getSnapshot()).toEqual({
       activeToken: "token-1",
-      reports: [{ id: 1, token: "token-1", path: "/bibles/1", cached: false }],
+      reports: [
+        { id: 1, token: "token-1", path: "/bibles/1", cached: false, at: 10_000 },
+      ],
+      reported: 1,
+      sent: 0,
     });
   });
 
   it("records a report when the FUMS script is not loaded", () => {
+    vi.spyOn(Date, "now").mockReturnValue(10_000);
     expect(() => fums.reportFumsToken("token-1", "/a", true)).not.toThrow();
     expect(fums.fumsStore.getSnapshot().reports).toEqual([
-      { id: 1, token: "token-1", path: "/a", cached: true },
+      { id: 1, token: "token-1", path: "/a", cached: true, at: 10_000 },
     ]);
+  });
+
+  it("counts each report in reported", () => {
+    fums.reportFumsToken("a", "/a", false);
+    fums.reportFumsToken("b", "/b", false);
+    expect(fums.fumsStore.getSnapshot().reported).toBe(2);
+  });
+
+  it("does not count a repeat within one second in reported", () => {
+    vi.spyOn(Date, "now").mockReturnValue(10_000);
+    fums.reportFumsToken("a", "/a", false);
+    fums.reportFumsToken("a", "/a", false);
+    expect(fums.fumsStore.getSnapshot().reported).toBe(1);
   });
 
   it("keeps 50 reports", () => {
@@ -157,7 +191,13 @@ describe("reportFumsToken", () => {
     }
     const { reports, activeToken } = fums.fumsStore.getSnapshot();
     expect(reports).toHaveLength(max);
-    expect(reports[0]).toEqual({ id: 6, token: "token-6", path: "/page-6", cached: false });
+    expect(reports[0]).toEqual({
+      id: 6,
+      token: "token-6",
+      path: "/page-6",
+      cached: false,
+      at: expect.any(Number),
+    });
     expect(reports.at(-1)?.id).toBe(max + 5);
     expect(activeToken).toBe(`token-${max + 5}`);
   });
@@ -198,8 +238,8 @@ describe("reportFumsToken", () => {
 
     expect(window.fums).toHaveBeenCalledTimes(2);
     expect(fums.fumsStore.getSnapshot().reports).toEqual([
-      { id: 1, token: "a", path: "/a", cached: false },
-      { id: 2, token: "a", path: "/a", cached: true },
+      { id: 1, token: "a", path: "/a", cached: false, at: 10_000 },
+      { id: 2, token: "a", path: "/a", cached: true, at: 11_000 },
     ]);
   });
 
@@ -246,6 +286,34 @@ describe("leaveFumsPage", () => {
 });
 
 describe("recordFumsRequest", () => {
+  it("counts each report that gets a request as sent", () => {
+    fums.reportFumsToken("a", "/a", false);
+    fums.reportFumsToken("b", "/b", false);
+    expect(fums.fumsStore.getSnapshot().sent).toBe(0);
+
+    fums.recordFumsRequest(fumsUrl(["a"]), 200, 1);
+    expect(fums.fumsStore.getSnapshot().sent).toBe(1);
+    fums.recordFumsRequest(fumsUrl(["b"]), 200, 1);
+    expect(fums.fumsStore.getSnapshot().sent).toBe(2);
+  });
+
+  it("keeps the counters right after old reports drop", () => {
+    const max = fums.MAX_FUMS_REPORTS;
+    for (let i = 1; i <= max + 5; i++) {
+      fums.reportFumsToken(`token-${i}`, "/a", false);
+    }
+    //token-1 to token-5 were dropped, so their requests change nothing
+    const before = fums.fumsStore.getSnapshot();
+    fums.recordFumsRequest(fumsUrl(["token-1", "token-5"]), 200, 1);
+    expect(fums.fumsStore.getSnapshot()).toBe(before);
+
+    fums.recordFumsRequest(fumsUrl(["token-1", "token-6", `token-${max + 5}`]), 200, 1);
+    const { reports, reported, sent } = fums.fumsStore.getSnapshot();
+    expect(reports).toHaveLength(max);
+    expect(reported).toBe(max + 5);
+    expect(sent).toBe(2);
+  });
+
   it("attaches the request and its IDs to the report of the token", () => {
     fums.reportFumsToken("a", "/a", false);
     fums.recordFumsRequest(
@@ -284,6 +352,7 @@ describe("recordFumsRequest", () => {
     expect(a.request?.status).toBe(200);
     expect(b.request).toBeUndefined();
     expect(c.request?.status).toBe(200);
+    expect(fums.fumsStore.getSnapshot().sent).toBe(2);
   });
 
   it("attaches a request to the oldest report of its token that has none", () => {
@@ -322,6 +391,7 @@ describe("recordFumsRequest", () => {
     fums.recordFumsRequest(fumsUrl(["a"]), 500, 9);
     expect(fums.fumsStore.getSnapshot()).toBe(before);
     expect(before.reports[0].request?.status).toBe(200);
+    expect(before.sent).toBe(1);
   });
 
   it("ignores a request for a report that was dropped", () => {
@@ -355,6 +425,7 @@ describe("recordFumsRequest", () => {
         token: "a",
         path: "/a",
         cached: true,
+        at: 20_000,
         request: expect.objectContaining({ status: 200 }),
       },
     ]);

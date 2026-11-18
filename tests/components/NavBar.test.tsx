@@ -26,9 +26,9 @@ vi.mock("next/link", () => ({
 import { Navbar } from "@/components/NavBar";
 
 const externalLinks = [
-  ["Source Code", "https://github.com/americanbible/api-bible-demo"],
-  ["Documentation", "https://docs.api.bible"],
-  ["API.Bible Website", "https://api.bible"],
+  ["Source Code, opens in a new window", "https://github.com/americanbible/api-bible-demo"],
+  ["Documentation, opens in a new window", "https://docs.api.bible"],
+  ["API.Bible Website, opens in a new window", "https://api.bible"],
 ];
 
 describe("Navbar", () => {
@@ -53,7 +53,9 @@ describe("Navbar", () => {
     render(<Navbar />);
     //The mobile menu is closed, so only the desktop links are in the page
     for (const [name, href] of externalLinks) {
-      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+      const link = screen.getByRole("link", { name });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveAttribute("target", "_blank");
     }
   });
 
@@ -68,8 +70,9 @@ describe("Navbar", () => {
       expect(links).toHaveLength(2);
       for (const link of links) {
         expect(link).toHaveAttribute("href", href);
-        //The links open in the same tab, with the icon of an external link
-        expect(link).not.toHaveAttribute("target");
+        //The links open in a new window, as the icon of an external link shows
+        expect(link).toHaveAttribute("target", "_blank");
+        expect(link).toHaveAttribute("rel", "noopener noreferrer");
         expect(link.querySelector("svg")).not.toBeNull();
       }
     }

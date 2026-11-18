@@ -27,6 +27,8 @@ export const LinkButton = ({
     <Link
       href={href}
       prefetch={false}
+      //An external link opens in a new window, as its icon shows
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className={`flex gap-2 items-center justify-center px-4 py-2 ${
         tab
           ? "folder-tab folder-tab-link"
@@ -35,7 +37,12 @@ export const LinkButton = ({
     >
       {children}
       {!!title && <span className="text-md text-nowrap">{title}</span>}
-      {external && <SquareArrowOutUpRight size={12} />}
+      {external && (
+        <>
+          <SquareArrowOutUpRight size={12} aria-hidden="true" />
+          <span className="sr-only">, opens in a new window</span>
+        </>
+      )}
     </Link>
   );
 };

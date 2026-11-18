@@ -37,6 +37,21 @@ describe("LinkButton", () => {
     expect(container.querySelectorAll("svg")).toHaveLength(1);
   });
 
+  it("opens an external link in a new window, and says so in its name", () => {
+    render(<LinkButton title="Docs" href="https://docs.api.bible" external />);
+    const link = screen.getByRole("link", { name: "Docs, opens in a new window" });
+    expect(link).toHaveAttribute("target", "_blank");
+    //The new window must not get access to this window
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("opens a link that is not external in the same window", () => {
+    render(<LinkButton title="Books" href="/books" />);
+    const link = screen.getByRole("link", { name: "Books" });
+    expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("rel");
+  });
+
   it("renders children and omits the title text when the title is empty", () => {
     render(
       <LinkButton title="" href="/a">

@@ -57,6 +57,8 @@ export type FumsReport = {
   path: string;
   /** The token came from a response in the cache of the demo */
   cached: boolean;
+  /** Time of the report, from `Date.now()` */
+  at: number;
   /** The request that the FUMS script sent, when the browser has recorded it */
   request?: {
     deviceId: string | null;
@@ -70,17 +72,24 @@ export type FumsReport = {
 };
 
 type FumsState = {
+  /** The newest reports, up to `MAX_FUMS_REPORTS` */
   reports: FumsReport[];
   /** Token of the page that shows now, or `null` if the page has no Scripture */
   activeToken: string | null;
+  /** Number of reports in the session. Reports that drop from the list stay in it. */
+  reported: number;
+  /**
+   * Number of reports in the session that got a request to the FUMS server. Reports
+   * that drop from the list stay in it. `reported - sent` reports wait for their request.
+   */
+  sent: number;
 };
 
 //One object for the empty state. React needs the same object each time it asks for the server state.
-const EMPTY_STATE: FumsState = { reports: [], activeToken: null };
+const EMPTY_STATE: FumsState = { reports: [], activeToken: null, reported: 0, sent: 0 };
 let state = EMPTY_STATE;
 const listeners = new Set<() => void>();
 let lastReport = { token: "", at: 0 };
-let reportCount = 0;
 
 const setState = (next: FumsState) => {
   state = next;
@@ -113,15 +122,18 @@ export const reportFumsToken = (token: string, path: string, cached: boolean) =>
 
   if (!repeated) {
     window.fums?.("trackView", token);
-    reportCount += 1;
+    //The ID of a report is the number of reports in the session
+    const reported = state.reported + 1;
     setState({
+      ...state,
       activeToken: token,
+      reported,
       reports: [
         ...state.reports,
-        { id: reportCount, token, path, cached },
+        { id: reported, token, path, cached, at: now },
       ].slice(-MAX_FUMS_REPORTS),
     });
-  } else {
+  } else if (state.activeToken !== token) {
     setState({ ...state, activeToken: token });
   }
 };
@@ -151,7 +163,8 @@ export const recordFumsRequest = (
     durationMs,
   };
 
-  let changed = false;
+  //A token of a report that dropped from the list matches no report, so it changes nothing
+  let attached = 0;
   const reports = state.reports.map((report) => {
     //Attach the request to the oldest report of its token that has no request
     const index = report.request ? -1 : tokens.indexOf(report.token);
@@ -159,10 +172,10 @@ export const recordFumsRequest = (
       return report;
     }
     tokens.splice(index, 1);
-    changed = true;
+    attached += 1;
     return { ...report, request };
   });
-  if (changed) {
-    setState({ ...state, reports });
+  if (attached) {
+    setState({ ...state, reports, sent: state.sent + attached });
   }
 };

@@ -66,7 +66,7 @@ describe("HeaderSection", () => {
       "href",
       "/guide",
     );
-    expect(screen.getByRole("link", { name: "Docs" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Docs, opens in a new window" })).toHaveAttribute(
       "href",
       "https://docs.api.bible",
     );
@@ -84,7 +84,7 @@ describe("HeaderSection", () => {
       />,
     );
     const plain = screen.getByRole("link", { name: "Plain" });
-    const outside = screen.getByRole("link", { name: "Outside" });
+    const outside = screen.getByRole("link", { name: "Outside, opens in a new window" });
     const folder = screen.getByRole("link", { name: "Folder" });
 
     //Only the external link has the arrow icon

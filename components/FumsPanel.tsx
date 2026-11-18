@@ -15,9 +15,16 @@ import {
   ChevronUp,
   Loader,
   SquareArrowOutUpRight,
+  X,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+
+/**
+ * Time that the panel waits for the request of a report. After it, steps 3 and 4 show
+ * as not done. They become done if the request comes later.
+ */
+export const FUMS_REQUEST_TIMEOUT_MS = 5000;
 
 type FumsReporterProps = {
   /** The `meta.fumsToken` of the API response that the page shows */
@@ -55,24 +62,36 @@ const isFumsRequest = (url: string) => {
 const short = (value: string | null | undefined) =>
   !value ? "none" : value.length > 14 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value;
 
+type StepState = "done" | "inProgress" | "notDone";
+
+const STEP_ICONS = {
+  done: <Check size={12} className="text-accent" aria-hidden="true" />,
+  inProgress: (
+    <Loader size={12} className="animate-spin text-zinc-400" aria-hidden="true" />
+  ),
+  notDone: <X size={12} className="text-red-600" aria-hidden="true" />,
+};
+
+const STEP_STATE_TEXTS = {
+  done: "Done:",
+  inProgress: "In progress:",
+  notDone: "Not done:",
+};
+
 const Step = ({
-  done,
+  state,
   title,
   children,
 }: {
-  done: boolean;
+  state: StepState;
   title: string;
   children: ReactNode;
 }) => (
   <li className="flex gap-2">
     <span className="mt-0.5 shrink-0">
-      {done ? (
-        <Check size={12} className="text-accent" aria-hidden="true" />
-      ) : (
-        <Loader size={12} className="animate-spin text-zinc-400" aria-hidden="true" />
-      )}
+      {STEP_ICONS[state]}
       {/* The icon is the only visible sign of the state. This text gives the state to a screen reader. */}
-      <span className="sr-only">{done ? "Done:" : "In progress:"}</span>
+      <span className="sr-only">{STEP_STATE_TEXTS[state]}</span>
     </span>
     <span className="min-w-0">
       <span className="block font-bold">{title}</span>
@@ -86,15 +105,16 @@ const Step = ({
  *
  * On a page that contains Scripture, the panel is open and shows the steps of the
  * report for that page: the token, the call to the FUMS script, the IDs that the script
- * added, and the request to the FUMS server. On other pages, it is one line with the
- * number of reports. Click the title to open or close it.
+ * added, and the request to the FUMS server. On other pages, it is one line that tells
+ * how many reports the script sent and how many wait for their request. Click the
+ * title to open or close it.
  *
  * The panel does not send the reports and does not change the FUMS script. It reads
  * the list of network requests that the browser keeps, to show what the script sent.
  */
 export const FumsPanel = () => {
   const pathname = usePathname();
-  const { reports, activeToken } = useSyncExternalStore(
+  const { reports, activeToken, reported, sent } = useSyncExternalStore(
     fumsStore.subscribe,
     fumsStore.getSnapshot,
     fumsStore.getServerSnapshot,
@@ -131,8 +151,25 @@ export const FumsPanel = () => {
   const open =
     toggled?.path === pathname ? toggled.open : !!activeToken && !!report;
   const request = report?.request;
-  //The store keeps only the newest reports. The ID of the newest is the count of the session.
-  const count = reports.at(-1)?.id ?? 0;
+  const waiting = reported - sent;
+
+  //The ID of the shown report when it waited too long for its request
+  const [timedOutId, setTimedOutId] = useState<number | null>(null);
+  const waitingId = report && !request ? report.id : null;
+  const deadline = report ? report.at + FUMS_REQUEST_TIMEOUT_MS : 0;
+  useEffect(() => {
+    if (waitingId === null) {
+      return;
+    }
+    const timer = setTimeout(() => setTimedOutId(waitingId), deadline - Date.now());
+    return () => clearTimeout(timer);
+  }, [waitingId, deadline]);
+  const requestState: StepState = request
+    ? "done"
+    : timedOutId === report?.id
+      ? "notDone"
+      : "inProgress";
+  const noRequest = `No request after ${FUMS_REQUEST_TIMEOUT_MS / 1000} seconds.`;
 
   return (
     <aside
@@ -148,7 +185,7 @@ export const FumsPanel = () => {
         <span>
           <b>FUMS</b>
           <span className="ml-2 text-zinc-500">
-            {count} {count === 1 ? "report" : "reports"}
+            {sent} sent{waiting > 0 && `, ${waiting} waiting`}
           </span>
         </span>
         {open ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
@@ -158,7 +195,7 @@ export const FumsPanel = () => {
         <div className="px-3 pb-3 pt-1 border-line border-t-[1px]">
           {report ? (
             <ol className="flex flex-col gap-2">
-              <Step done title="1. The API gave a token">
+              <Step state="done" title="1. The API gave a token">
                 <code>meta.fumsToken</code> = {short(report.token)}
                 {report.cached && (
                   <>
@@ -167,10 +204,10 @@ export const FumsPanel = () => {
                   </>
                 )}
               </Step>
-              <Step done title="2. The page called the FUMS script">
+              <Step state="done" title="2. The page called the FUMS script">
                 <code>fums(&quot;trackView&quot;, token)</code>
               </Step>
-              <Step done={!!request} title="3. The script added the IDs">
+              <Step state={requestState} title="3. The script added the IDs">
                 {request ? (
                   <>
                     Device <code>dId</code> = {short(request.deviceId)}
@@ -181,18 +218,23 @@ export const FumsPanel = () => {
                     <br />
                     (SHA-256 hash of &quot;{FUMS_DEMO_USER_ID}&quot;)
                   </>
+                ) : requestState === "notDone" ? (
+                  noRequest
                 ) : (
                   "Wait for the script."
                 )}
               </Step>
-              <Step done={!!request} title="4. The script sent the report">
+              <Step state={requestState} title="4. The script sent the report">
                 {request ? (
                   <>
                     <code>GET fums.api.bible/f3</code>
                     <br />
-                    {request.status ? `Status ${request.status}` : "Sent"} in{" "}
-                    {request.durationMs} ms
+                    {request.status
+                      ? `Status ${request.status} in ${request.durationMs} ms`
+                      : `Sent in ${request.durationMs} ms. The browser does not show the status of a request to a different site.`}
                   </>
+                ) : requestState === "notDone" ? (
+                  `${noRequest} A content blocker can stop the FUMS script.`
                 ) : (
                   "Wait for the request."
                 )}
@@ -206,11 +248,12 @@ export const FumsPanel = () => {
           <a
             href={FUMS_DOCS_URL}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1 mt-3 underline text-accent"
           >
             FUMS documentation
-            <SquareArrowOutUpRight size={10} />
+            <SquareArrowOutUpRight size={10} aria-hidden="true" />
+            <span className="sr-only">, opens in a new window</span>
           </a>
         </div>
       )}

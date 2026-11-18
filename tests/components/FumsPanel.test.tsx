@@ -1,6 +1,6 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigation = vi.hoisted(() => ({ pathname: "/bibles/a" }));
 vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
@@ -37,6 +37,13 @@ beforeEach(async () => {
   observe.mockClear();
   disconnect.mockClear();
   vi.stubGlobal("PerformanceObserver", FakePerformanceObserver);
+  //The shim of the root layout makes this function before each page shows
+  window.fums = vi.fn();
+});
+
+afterEach(() => {
+  delete window.fums;
+  vi.useRealTimers();
 });
 
 const LONG_TOKEN = "abcdefghijklmnopqrstuvwxyz";
@@ -50,17 +57,20 @@ describe("FumsPanel", () => {
     render(<panel.FumsPanel />);
 
     expect(toggleButton()).toHaveAttribute("aria-expanded", "false");
-    expect(toggleButton()).toHaveTextContent("0 reports");
+    expect(toggleButton()).toHaveTextContent("FUMS0 sent");
+    expect(toggleButton()).not.toHaveTextContent("waiting");
     expect(screen.queryByText(/No report yet/)).not.toBeInTheDocument();
 
     await user.click(toggleButton());
     expect(toggleButton()).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText(/No report yet/)).toBeInTheDocument();
 
-    const link = screen.getByRole("link", { name: "FUMS documentation" });
+    const link = screen.getByRole("link", {
+      name: "FUMS documentation, opens in a new window",
+    });
     expect(link).toHaveAttribute("href", "https://docs.api.bible/resources/fair-use");
     expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
 
     await user.click(toggleButton());
     expect(toggleButton()).toHaveAttribute("aria-expanded", "false");
@@ -76,8 +86,7 @@ describe("FumsPanel", () => {
     );
 
     expect(toggleButton()).toHaveAttribute("aria-expanded", "true");
-    expect(toggleButton()).toHaveTextContent("1 report");
-    expect(toggleButton()).not.toHaveTextContent("1 reports");
+    expect(toggleButton()).toHaveTextContent("0 sent, 1 waiting");
 
     const steps = within(activity()).getAllByRole("listitem");
     expect(steps).toHaveLength(4);
@@ -120,7 +129,13 @@ describe("FumsPanel", () => {
 
     expect(window.fums).toHaveBeenCalledWith("trackView", "tok");
     expect(fums.fumsStore.getSnapshot().reports).toEqual([
-      { id: 1, token: "tok", path: "/bibles/x/verses/JHN.3.16", cached: true },
+      {
+        id: 1,
+        token: "tok",
+        path: "/bibles/x/verses/JHN.3.16",
+        cached: true,
+        at: expect.any(Number),
+      },
     ]);
     delete window.fums;
   });
@@ -188,7 +203,7 @@ describe("FumsPanel", () => {
     rerender(<panel.FumsPanel />);
 
     expect(toggleButton()).toHaveAttribute("aria-expanded", "false");
-    expect(toggleButton()).toHaveTextContent("2 reports");
+    expect(toggleButton()).toHaveTextContent("0 sent, 2 waiting");
 
     await user.click(toggleButton());
     expect(screen.getByText(/second-token/)).toBeInTheDocument();
@@ -204,7 +219,7 @@ describe("FumsPanel", () => {
     });
     render(<panel.FumsPanel />);
 
-    expect(toggleButton()).toHaveTextContent("4 reports");
+    expect(toggleButton()).toHaveTextContent("0 sent, 4 waiting");
     //The newest report of the active token is the one with the cache note
     expect(screen.getByText(/token-b/)).toBeInTheDocument();
     expect(screen.getByText(/From a response in the cache/)).toBeInTheDocument();
@@ -250,7 +265,7 @@ describe("FumsPanel", () => {
         .getAllByRole("listitem")
         .map((step) => {
           const text = step.textContent ?? "";
-          expect(text).toMatch(/^(Done:|In progress:)/);
+          expect(text).toMatch(/^(Done:|In progress:|Not done:)/);
           return text.startsWith("In progress:");
         });
     expect(waiting()).toEqual([false, false, true, true]);
@@ -267,9 +282,11 @@ describe("FumsPanel", () => {
       </>,
     );
     sendEntries([{ name: "https://fums.api.bible/f3?t=tok", duration: 4 }]);
-    expect(within(activity()).getAllByRole("listitem")[3]).toHaveTextContent(
-      "Sent in 4 ms",
+    const step = within(activity()).getAllByRole("listitem")[3];
+    expect(step).toHaveTextContent(
+      "Sent in 4 ms. The browser does not show the status of a request to a different site.",
     );
+    expect(step).not.toHaveTextContent("Status");
   });
 
   it("ignores requests to other sites", () => {
@@ -319,13 +336,19 @@ describe("FumsPanel", () => {
   });
 
   it("counts all reports of the session, also the ones the store dropped", () => {
+    render(<panel.FumsPanel />);
     act(() => {
       for (let i = 1; i <= fums.MAX_FUMS_REPORTS + 5; i++) {
         fums.reportFumsToken(`token-${i}`, "/a", false);
       }
     });
-    render(<panel.FumsPanel />);
-    expect(toggleButton()).toHaveTextContent(`${fums.MAX_FUMS_REPORTS + 5} reports`);
+    //token-1 was dropped, so its request changes nothing
+    sendEntries([
+      { name: "https://fums.api.bible/f3?t=token-1&t=token-6&t=token-7", duration: 4 },
+    ]);
+    expect(toggleButton()).toHaveTextContent(
+      `2 sent, ${fums.MAX_FUMS_REPORTS + 3} waiting`,
+    );
   });
 
   it("stops reading requests when it unmounts", () => {
@@ -343,7 +366,7 @@ describe("FumsPanel", () => {
       </>,
     );
     expect(observerCallback).toBeUndefined();
-    expect(toggleButton()).toHaveTextContent("1 report");
+    expect(toggleButton()).toHaveTextContent("0 sent, 1 waiting");
   });
 
   it("keeps the choice of the user on the same page only", async () => {
@@ -368,5 +391,176 @@ describe("FumsPanel", () => {
       </>,
     );
     expect(toggleButton()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  describe("the header", () => {
+    it("says only sent when no report waits", () => {
+      render(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok" />
+        </>,
+      );
+      sendEntries([{ name: "https://fums.api.bible/f3?t=tok", duration: 4 }]);
+      expect(toggleButton()).toHaveTextContent("FUMS1 sent");
+      expect(toggleButton()).not.toHaveTextContent("waiting");
+    });
+
+    it("says how many reports were sent and how many wait", () => {
+      act(() => {
+        fums.reportFumsToken("a", "/a", false);
+        fums.reportFumsToken("b", "/b", false);
+        fums.reportFumsToken("c", "/c", false);
+      });
+      render(<panel.FumsPanel />);
+      sendEntries([{ name: "https://fums.api.bible/f3?t=a&t=c", duration: 4 }]);
+      expect(toggleButton()).toHaveTextContent("FUMS2 sent, 1 waiting");
+    });
+  });
+
+  describe("steps 3 and 4 with no request", () => {
+    const stepStates = () =>
+      within(activity())
+        .getAllByRole("listitem")
+        .map((step) => /^(Done|In progress|Not done):/.exec(step.textContent ?? "")?.[1]);
+    const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    it("exports a delay of 5 seconds", () => {
+      expect(panel.FUMS_REQUEST_TIMEOUT_MS).toBe(5000);
+    });
+
+    it("are in progress at 4999 ms and not done at 5000 ms", () => {
+      render(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok" />
+        </>,
+      );
+      advance(4999);
+      expect(stepStates()).toEqual(["Done", "Done", "In progress", "In progress"]);
+      expect(screen.getByText("Wait for the script.")).toBeInTheDocument();
+
+      advance(1);
+      expect(stepStates()).toEqual(["Done", "Done", "Not done", "Not done"]);
+      const steps = within(activity()).getAllByRole("listitem");
+      expect(steps[2]).toHaveTextContent("No request after 5 seconds.");
+      expect(steps[3]).toHaveTextContent(
+        "No request after 5 seconds. A content blocker can stop the FUMS script.",
+      );
+      expect(screen.queryByText("Wait for the script.")).not.toBeInTheDocument();
+      //The report is still counted as waiting: its request can come later
+      expect(toggleButton()).toHaveTextContent("0 sent, 1 waiting");
+    });
+
+    it("become done when the request comes after 5 seconds", () => {
+      render(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok" />
+        </>,
+      );
+      advance(6000);
+      expect(stepStates()).toEqual(["Done", "Done", "Not done", "Not done"]);
+
+      sendEntries([{ name: "https://fums.api.bible/f3?t=tok", duration: 4 }]);
+      expect(stepStates()).toEqual(["Done", "Done", "Done", "Done"]);
+      expect(toggleButton()).toHaveTextContent("1 sent");
+    });
+
+    it("stay done when the request comes before 5 seconds", () => {
+      render(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok" />
+        </>,
+      );
+      advance(1000);
+      sendEntries([{ name: "https://fums.api.bible/f3?t=tok", duration: 4 }]);
+      advance(10_000);
+      expect(stepStates()).toEqual(["Done", "Done", "Done", "Done"]);
+    });
+
+    it("count the 5 seconds from the time of the report", () => {
+      //The user left the page, so the panel starts closed
+      act(() => {
+        fums.reportFumsToken("tok", "/a", false);
+        fums.leaveFumsPage("tok");
+      });
+      advance(3000);
+      render(<panel.FumsPanel />);
+      fireEvent.click(toggleButton());
+
+      advance(1999);
+      expect(stepStates()).toEqual(["Done", "Done", "In progress", "In progress"]);
+      advance(1);
+      expect(stepStates()).toEqual(["Done", "Done", "Not done", "Not done"]);
+    });
+
+    it("are not done at once for a report older than 5 seconds", () => {
+      //The user left the page, so the panel starts closed
+      act(() => {
+        fums.reportFumsToken("tok", "/a", false);
+        fums.leaveFumsPage("tok");
+      });
+      advance(8000);
+      render(<panel.FumsPanel />);
+      fireEvent.click(toggleButton());
+      advance(0);
+      expect(stepStates()).toEqual(["Done", "Done", "Not done", "Not done"]);
+    });
+
+    it("start in progress again for a new report", () => {
+      const { rerender } = render(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok" />
+        </>,
+      );
+      advance(5000);
+      expect(stepStates()).toEqual(["Done", "Done", "Not done", "Not done"]);
+
+      rerender(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok-2" />
+        </>,
+      );
+      expect(screen.getByText(/tok-2/)).toBeInTheDocument();
+      expect(stepStates()).toEqual(["Done", "Done", "In progress", "In progress"]);
+      advance(4999);
+      expect(stepStates()).toEqual(["Done", "Done", "In progress", "In progress"]);
+    });
+
+    it("stop the timer when the panel unmounts", () => {
+      const { unmount } = render(
+        <>
+          <panel.FumsPanel />
+          <panel.FumsReporter token="tok" />
+        </>,
+      );
+      expect(vi.getTimerCount()).toBe(1);
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+  });
+
+  it("gives the status when the browser shows it", () => {
+    render(
+      <>
+        <panel.FumsPanel />
+        <panel.FumsReporter token="tok" />
+      </>,
+    );
+    sendEntries([
+      { name: "https://fums.api.bible/f3?t=tok", duration: 4, responseStatus: 204 },
+    ]);
+    const step = within(activity()).getAllByRole("listitem")[3];
+    expect(step).toHaveTextContent("Status 204 in 4 ms");
+    expect(step).not.toHaveTextContent("Sent in");
+    expect(step).not.toHaveTextContent("different site");
   });
 });
