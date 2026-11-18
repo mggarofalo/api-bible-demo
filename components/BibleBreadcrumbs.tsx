@@ -95,8 +95,9 @@ const ID_NAMES: Record<string, string> = {
  * of the page. The routes of this application agree with the routes of the API, so the
  * route comes from the URL of the page.
  *
- * Each ID in the route has its placeholder name below it, for example `{bibleId}`, to
- * show the syntax of the route: `/bibles/{bibleId}/verses/{verseId}`.
+ * Each ID in the route has a dotted line below it. Move the pointer onto an ID (or give
+ * it the focus) to see its placeholder name, for example `{bibleId}`. This shows the
+ * syntax of the route: `/bibles/{bibleId}/verses/{verseId}`.
  */
 export const RouteHero = () => {
   const pathname = usePathname();
@@ -105,26 +106,32 @@ export const RouteHero = () => {
   return (
     <h3
       aria-label={`GET ${pathname}`}
-      className="flex flex-wrap items-start gap-y-2 font-mono text-xl sm:text-2xl font-bold leading-tight"
+      className="flex flex-wrap items-baseline font-mono text-base sm:text-lg font-bold"
     >
-      <span className="mr-3 mt-1 px-2 py-0.5 rounded text-sm text-accent bg-accent-soft border-accent/40 border-[1px]">
-        GET
-      </span>
+      <span className="mr-2">GET</span>
       {parts.map((part, index) => {
         const idName = ID_NAMES[parts[index - 1]];
         //A part is an ID when the part before it is a collection, and it is in an odd position (`/bibles/{bibleId}/books/{bookId}`)
         const isId = !!idName && index % 2 === 1;
 
         return (
-          <span key={index} className="flex items-start">
-            <span className="text-zinc-400">/</span>
+          <span key={index} className="flex items-baseline">
+            /
             {isId ? (
-              <span className="flex flex-col">
-                <span className="text-accent break-all">{part}</span>
-                <span className="text-xs font-normal text-zinc-500">{`{${idName}}`}</span>
+              <span
+                tabIndex={0}
+                className="group relative break-all cursor-help outline-none border-b-[1px] border-dotted border-current"
+              >
+                {part}
+                <span
+                  role="tooltip"
+                  className="hidden group-hover:block group-focus:block absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-0.5 rounded text-xs font-normal whitespace-nowrap text-white bg-black"
+                >
+                  {`{${idName}}`}
+                </span>
               </span>
             ) : (
-              <span>{part}</span>
+              part
             )}
           </span>
         );
