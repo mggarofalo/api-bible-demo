@@ -10,9 +10,10 @@ type ReferenceEndpoint = { parameters: Record<string, ReferenceParameter> };
 const ENDPOINT_DEFAULTS = Object.entries(
   reference.endpoints as Record<string, ReferenceEndpoint>,
 ).map(([path, endpoint]) => ({
-  //`/bibles/{bibleId}/books` becomes a pattern that agrees with `/v1/bibles/<an ID>/books`
+  //`/bibles/{bibleId}/books` becomes a pattern that agrees with `/v1/bibles/<an ID>/books`.
+  //The version is optional, so the pattern also agrees with the path of a demo page.
   pattern: new RegExp(
-    `^/v\\d+${path
+    `^(?:/v\\d+)?${path
       .split("/")
       .map((part) => (/^\{.+\}$/.test(part) ? "[^/]+" : part))
       .join("/")}$`,
@@ -21,6 +22,17 @@ const ENDPOINT_DEFAULTS = Object.entries(
     parameter.default === undefined ? [] : [[name, parameter.default] as const],
   ),
 }));
+
+/**
+ * Returns the default values of the API for the query parameters of an endpoint.
+ *
+ * @param pathname  Path of the API request, or of the demo page (the two agree)
+ */
+export const getApiDefaults = (pathname: string): Record<string, string> =>
+  Object.fromEntries(
+    ENDPOINT_DEFAULTS.find(({ pattern }) => pattern.test(pathname))?.defaults ??
+      [],
+  );
 
 /**
  * Removes the query parameters of an API request that have the default value of the

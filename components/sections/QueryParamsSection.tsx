@@ -1,5 +1,6 @@
 "use client";
 
+import { getApiDefaults } from "@/utils/apiDefaults";
 import type { QueryParam } from "@/utils/queryParams";
 import { ChevronDown, Loader } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -23,6 +24,9 @@ type QueryParamsSectionProps = {
  *   - A parameter with a fixed set of values is a list.
  *   - A parameter that is a list of Bibles shows the selected Bibles, and a list to add one.
  *   - Other parameters are text boxes. Push Enter, or go out of the box, to apply the text.
+ *
+ * A control is blue when its parameter is in the API request, that is, when its value
+ * is not the default of the API.
  *
  * When the user changes a value, the value goes into the URL of the page. The server
  * then sends the API request again with the new value, and the page shows the new
@@ -57,7 +61,11 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
     });
   };
 
-  const changed = (param: QueryParam) => param.value !== param.defaultValue;
+  //A control is blue when its parameter is in the API request. The request does not
+  //contain a parameter that is empty, or that has the default value of the API.
+  const apiDefaults = getApiDefaults(pathname);
+  const changed = (param: QueryParam) =>
+    param.value !== "" && param.value !== apiDefaults[param.name];
   const boxClass = (param: QueryParam) =>
     `text-sm font-bold bg-white border-[1px] ${
       changed(param) ? "border-accent text-accent" : "border-line"
