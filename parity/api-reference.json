@@ -1,0 +1,221 @@
+{
+  "source": "https://rest.api.bible/v1/swagger.json",
+  "version": "1.6.3",
+  "endpoints": {
+    "/audio-bibles": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "language": {},
+        "abbreviation": {},
+        "name": {},
+        "ids": {},
+        "bibleId": {},
+        "include-full-details": {}
+      }
+    },
+    "/audio-bibles/{bibleId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/audio-bibles/{bibleId}/books": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "include-chapters": {},
+        "include-chapters-and-sections": {}
+      }
+    },
+    "/audio-bibles/{bibleId}/books/{bookId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "include-chapters": {}
+      }
+    },
+    "/audio-bibles/{bibleId}/books/{bookId}/chapters": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/audio-bibles/{bibleId}/chapters/{chapterId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/bibles": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "language": {},
+        "abbreviation": {},
+        "name": {},
+        "ids": {},
+        "include-full-details": {}
+      }
+    },
+    "/bibles/{bibleId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/bibles/{bibleId}/books": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "include-chapters": {},
+        "include-chapters-and-sections": {}
+      }
+    },
+    "/bibles/{bibleId}/books/{bookId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "include-chapters": {}
+      }
+    },
+    "/bibles/{bibleId}/books/{bookId}/chapters": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/bibles/{bibleId}/books/{bookId}/sections": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/bibles/{bibleId}/chapters/{chapterId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "content-type": {
+          "values": [
+            "html",
+            "json",
+            "text"
+          ]
+        },
+        "include-notes": {},
+        "include-titles": {},
+        "include-chapter-numbers": {},
+        "include-verse-numbers": {},
+        "include-verse-spans": {},
+        "parallels": {}
+      }
+    },
+    "/bibles/{bibleId}/chapters/{chapterId}/sections": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/bibles/{bibleId}/chapters/{chapterId}/verses": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {}
+    },
+    "/bibles/{bibleId}/passages/{passageId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "content-type": {
+          "values": [
+            "html",
+            "json",
+            "text"
+          ]
+        },
+        "include-notes": {},
+        "include-titles": {},
+        "include-chapter-numbers": {},
+        "include-verse-numbers": {},
+        "include-verse-spans": {},
+        "parallels": {},
+        "use-org-id": {}
+      }
+    },
+    "/bibles/{bibleId}/search": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "query": {},
+        "limit": {},
+        "offset": {},
+        "sort": {
+          "values": [
+            "relevance",
+            "canonical",
+            "reverse-canonical"
+          ]
+        },
+        "range": {},
+        "fuzziness": {
+          "values": [
+            "AUTO",
+            "0",
+            "1",
+            "2"
+          ]
+        }
+      }
+    },
+    "/bibles/{bibleId}/sections/{sectionId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "content-type": {
+          "values": [
+            "html",
+            "json",
+            "text"
+          ]
+        },
+        "include-notes": {},
+        "include-titles": {},
+        "include-chapter-numbers": {},
+        "include-verse-numbers": {},
+        "include-verse-spans": {},
+        "parallels": {}
+      }
+    },
+    "/bibles/{bibleId}/verses/{verseId}": {
+      "methods": [
+        "get"
+      ],
+      "parameters": {
+        "content-type": {
+          "values": [
+            "html",
+            "json",
+            "text"
+          ]
+        },
+        "include-notes": {},
+        "include-titles": {},
+        "include-chapter-numbers": {},
+        "include-verse-numbers": {},
+        "include-verse-spans": {},
+        "parallels": {},
+        "use-org-id": {}
+      }
+    }
+  }
+}

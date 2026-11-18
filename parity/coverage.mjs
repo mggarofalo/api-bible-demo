@@ -1,27 +1,27 @@
 /**
- * Coverage manifest: the contract between the API.Bible SDK and this demo.
+ * Coverage manifest: the contract between the API.Bible API reference and this demo.
  *
- * Each key is a method of the SDK client (`resource.method`). Each value says where
- * the demo shows that method, or why it does not. `scripts/parity.mjs` reads this file
- * and fails when the SDK, this manifest and the demo do not agree.
+ * The authority is the API reference that API.Bible publishes (an OpenAPI document).
+ * `parity/api-reference.json` is a snapshot of its endpoints and query parameters.
+ * Each key of this manifest is an endpoint path from that reference. Each value says
+ * how the demo shows the endpoint, or why it does not. `scripts/parity.mjs` reads
+ * both files and fails when the reference, this manifest and the demo do not agree.
  *
- * When the SDK gets a new method or a new parameter, the parity check fails until
- * the change is added here, in one of two ways:
+ * When the reference gets a new endpoint or a new query parameter, the parity check
+ * fails until the change is added here, in one of two ways:
  *   - Covered: add a page (or a control on a page) and describe it here.
  *   - Deferred: add `deferred: "<reason>"`, to record that the gap is known.
  *
  * Entry fields:
- *   route     Path of the demo page that calls the method, with sample IDs. Because the
- *             paths of the demo agree with the paths of the API, this is also the path
- *             of the API request (after `/v1`).
- *   params    The parameters of the method. The key is the name in the SDK. The value is:
- *               name      Name of the query parameter in the URL of the demo page. Unless
- *                         `wire` is given, the API uses the same name.
+ *   ids       Sample values for the IDs in the path, for the live check. The demo page
+ *             has the same path as the endpoint, so these also give the page to load.
+ *   sdk       The SDK method (`resource.method`) that the page calls for this endpoint.
+ *   params    The query parameters of the endpoint. The key is the name in the API. The value is:
  *               sample    A value for the live check, different from the default of the page.
- *               wire      Name of the query parameter in the API request, if different.
+ *               page      Name of the parameter in the URL of the demo page, if different.
  *               expect    Value in the API request, if different from `sample`.
  *               deferred  Reason that the demo has no control for this parameter.
- *   deferred  Reason that the demo does not show this method.
+ *   deferred  Reason that the demo does not show this endpoint.
  */
 
 //Sample IDs for the live check. All are public-domain Bibles on the Starter plan.
@@ -29,94 +29,107 @@ const KJV = "de4e12af7f28f599-01"; //King James (Authorised) Version
 const WEB = "9879dbb7cfe39e4d-01"; //World English Bible
 const SECTIONS = "bba9f40183526463-01"; //Berean Standard Bible, which has section headings
 
-//Parameters of all endpoints that give verse text
+//Query parameters of all endpoints that give verse text
 const CONTENT = {
-  contentType: { name: "content-type", sample: "text" },
-  includeNotes: { name: "include-notes", sample: "true" },
-  includeTitles: { name: "include-titles", sample: "false" },
-  includeChapterNumbers: { name: "include-chapter-numbers", sample: "true" },
-  includeVerseNumbers: { name: "include-verse-numbers", sample: "false" },
-  includeVerseSpans: { name: "include-verse-spans", sample: "false" },
-  parallels: { name: "parallels", sample: WEB },
+  "content-type": { sample: "text" },
+  "include-notes": { sample: "true" },
+  "include-titles": { sample: "false" },
+  "include-chapter-numbers": { sample: "true" },
+  "include-verse-numbers": { sample: "false" },
+  "include-verse-spans": { sample: "false" },
+  parallels: { sample: WEB },
 };
 
 const AUDIO = "Audio Bibles are a future feature of this demo.";
 
 export const coverage = {
-  "bibles.list": {
-    route: "/bibles",
+  "/bibles": {
+    sdk: "bibles.list",
     params: {
-      language: { name: "language", sample: "eng" },
-      abbreviation: { name: "abbreviation", sample: "engKJV" },
-      name: { name: "name", sample: "King James" },
-      ids: { name: "ids", sample: KJV },
-      includeFullDetails: { name: "include-full-details", sample: "true" },
+      language: { sample: "eng" },
+      abbreviation: { sample: "engKJV" },
+      name: { sample: "King James" },
+      ids: { sample: KJV },
+      "include-full-details": { sample: "true" },
     },
   },
-  "bibles.get": { route: `/bibles/${KJV}` },
+  "/bibles/{bibleId}": { sdk: "bibles.get", ids: { bibleId: KJV } },
 
-  "books.list": {
-    route: `/bibles/${SECTIONS}/books`,
+  "/bibles/{bibleId}/books": {
+    sdk: "books.list",
+    ids: { bibleId: SECTIONS },
     params: {
-      includeChapters: { name: "include-chapters", sample: "false" },
-      includeChaptersAndSections: {
-        name: "include-chapters-and-sections",
-        sample: "true",
-      },
+      "include-chapters": { sample: "false" },
+      "include-chapters-and-sections": { sample: "true" },
     },
   },
-  "books.get": {
-    route: `/bibles/${KJV}/books/GEN`,
-    params: {
-      //The page asks for chapters by default, so the sample turns them off
-      includeChapters: { name: "include-chapters", sample: "false" },
-    },
+  "/bibles/{bibleId}/books/{bookId}": {
+    sdk: "books.get",
+    ids: { bibleId: KJV, bookId: "GEN" },
+    //The page asks for chapters by default, so the sample turns them off
+    params: { "include-chapters": { sample: "false" } },
+  },
+  "/bibles/{bibleId}/books/{bookId}/chapters": {
+    sdk: "chapters.list",
+    ids: { bibleId: KJV, bookId: "GEN" },
+  },
+  "/bibles/{bibleId}/books/{bookId}/sections": {
+    sdk: "sections.listForBook",
+    ids: { bibleId: SECTIONS, bookId: "GEN" },
   },
 
-  "chapters.list": { route: `/bibles/${KJV}/books/GEN/chapters` },
-  "chapters.get": {
-    route: `/bibles/${KJV}/chapters/GEN.1`,
+  "/bibles/{bibleId}/chapters/{chapterId}": {
+    sdk: "chapters.get",
+    ids: { bibleId: KJV, chapterId: "GEN.1" },
     params: {
       ...CONTENT,
       //The chapter page asks for notes by default, so the sample turns them off
-      includeNotes: { name: "include-notes", sample: "false" },
+      "include-notes": { sample: "false" },
     },
   },
+  "/bibles/{bibleId}/chapters/{chapterId}/verses": {
+    sdk: "verses.list",
+    ids: { bibleId: KJV, chapterId: "GEN.1" },
+  },
+  "/bibles/{bibleId}/chapters/{chapterId}/sections": {
+    sdk: "sections.listForChapter",
+    ids: { bibleId: SECTIONS, chapterId: "GEN.1" },
+  },
 
-  "verses.list": { route: `/bibles/${KJV}/chapters/GEN.1/verses` },
-  "verses.get": { route: `/bibles/${KJV}/verses/GEN.1.1`, params: CONTENT },
-
-  "passages.get": {
-    route: `/bibles/${KJV}/passages/GEN.1.1-GEN.1.3`,
+  "/bibles/{bibleId}/verses/{verseId}": {
+    sdk: "verses.get",
+    ids: { bibleId: KJV, verseId: "GEN.1.1" },
+    params: { ...CONTENT, "use-org-id": { sample: "true" } },
+  },
+  "/bibles/{bibleId}/passages/{passageId}": {
+    sdk: "passages.get",
+    ids: { bibleId: KJV, passageId: "GEN.1.1-GEN.1.3" },
+    params: { ...CONTENT, "use-org-id": { sample: "true" } },
+  },
+  "/bibles/{bibleId}/sections/{sectionId}": {
+    sdk: "sections.get",
+    ids: { bibleId: SECTIONS, sectionId: "GEN.S1" },
     params: CONTENT,
   },
 
-  "sections.listForBook": { route: `/bibles/${SECTIONS}/books/GEN/sections` },
-  "sections.listForChapter": {
-    route: `/bibles/${SECTIONS}/chapters/GEN.1/sections`,
-  },
-  "sections.get": {
-    route: `/bibles/${SECTIONS}/sections/GEN.S1`,
-    params: CONTENT,
-  },
-
-  "search.search": {
-    route: `/bibles/${KJV}/search`,
+  "/bibles/{bibleId}/search": {
+    sdk: "search.search",
+    ids: { bibleId: KJV },
     params: {
-      query: { name: "query", sample: "Aaron" },
-      limit: { name: "limit", sample: "25" },
+      query: { sample: "Aaron" },
+      limit: { sample: "25" },
       //The demo counts pages of results. Page 1 with a limit of 25 is an offset of 25.
-      offset: { name: "page", sample: "1", wire: "offset", expect: "25" },
-      sort: { name: "sort", sample: "canonical" },
-      range: { name: "range", sample: "exo-deu" },
-      fuzziness: { name: "fuzziness", sample: "1" },
+      offset: { page: "page", sample: "1", expect: "25" },
+      sort: { sample: "canonical" },
+      range: { sample: "exo-deu" },
+      fuzziness: { sample: "1" },
     },
   },
 
-  "audioBibles.list": { deferred: AUDIO },
-  "audioBibles.get": { deferred: AUDIO },
-  "audioBibles.listBooks": { deferred: AUDIO },
-  "audioBibles.getBook": { deferred: AUDIO },
-  "audioBibles.listChapters": { deferred: AUDIO },
-  "audioBibles.getChapter": { deferred: AUDIO },
+  "/audio-bibles": { deferred: AUDIO },
+  "/audio-bibles/{bibleId}": { deferred: AUDIO },
+  "/audio-bibles/{bibleId}/books": { deferred: AUDIO },
+  "/audio-bibles/{bibleId}/books/{bookId}": { deferred: AUDIO },
+  "/audio-bibles/{bibleId}/books/{bookId}/chapters": { deferred: AUDIO },
+  "/audio-bibles/{bibleId}/chapters/{chapterId}": { deferred: AUDIO },
 };

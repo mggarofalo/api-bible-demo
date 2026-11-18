@@ -1,52 +1,60 @@
 #!/usr/bin/env node
 /**
- * Parity check: makes sure that this demo stays in sync with the API.Bible SDK.
+ * Parity check: makes sure that this demo shows all of the API.Bible API.
  *
- *   npm run parity         Static checks. No server and no API key are necessary.
- *   npm run parity:live    Static checks, then live checks against a running demo.
+ * The authority is the API reference that API.Bible publishes: an OpenAPI document at
+ * https://rest.api.bible/v1/swagger.json. `parity/api-reference.json` is a snapshot of
+ * its endpoints and query parameters, and `parity/coverage.mjs` says how the demo
+ * shows each of them.
+ *
+ *   npm run parity          Static checks. No server, network or API key is necessary.
+ *   npm run parity:live     Static checks, then live checks against the published
+ *                           reference and a running demo.
+ *   npm run parity:update   Gets the published reference and writes the snapshot again.
  *
  * Static checks (fast, run on every change):
- *   1. Methods     Each method of the SDK client is in parity/coverage.mjs, and each
- *                  entry of the manifest is a method that the SDK has.
- *   2. Parameters  Each parameter of each method (read from the type definitions of
- *                  the SDK) is in the manifest, and the manifest has no parameter
- *                  that the SDK does not have.
- *   3. Calls       Each covered method is called in the source code of the demo.
+ *   1. Endpoints   Each endpoint of the reference is in the manifest, and each entry of
+ *                  the manifest is an endpoint of the reference.
+ *   2. Parameters  Each query parameter of each covered endpoint is in the manifest, and
+ *                  the manifest has no parameter that the reference does not have.
+ *   3. Source      For each covered endpoint, the demo has a page at the same path, and
+ *                  the page calls the API. The source also contains the name of each
+ *                  covered parameter, and each value of a parameter with fixed values.
  *
- * Live checks (need a running demo with an API key, run on a schedule):
- *   4. Pages       Each covered page loads, with every parameter set to its sample
+ * Live checks (run on a schedule):
+ *   4. Reference   The published reference is the same as the snapshot. A difference
+ *                  means that the API changed. Run "npm run parity:update", then do the
+ *                  static checks again to see what the demo must add.
+ *   5. Pages       Each covered page loads, with every parameter set to its sample
  *                  value. The API request that the page made must have:
  *                    - the status 200
  *                    - the same path as the page (the paths of the demo agree with the API)
  *                    - each parameter of the manifest, with the expected value
  *                    - no parameter that the manifest does not have
  *
- * A static failure means that the SDK changed, or the demo did. A live failure means
- * that the live API and the SDK do not agree, or that a page does not send the request
- * that its controls show.
- *
  * Options:
  *   --live               Also run the live checks.
+ *   --update             Write the snapshot again from the published reference, then stop.
  *   --base-url=<url>     Address of the running demo. Default: http://localhost:3000
  *   --wait=<seconds>     Wait up to this time for the demo to start. Default: 0
  *
  * The exit code is 1 if a check fails, and 0 if all checks pass.
  */
-import { readdirSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { coverage } from "../parity/coverage.mjs";
 
-const SDK = "@americanbible/api-bible-sdk";
+const REFERENCE_URL = "https://rest.api.bible/v1/swagger.json";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(import.meta.url);
+const snapshotPath = join(root, "parity", "api-reference.json");
 
 const args = process.argv.slice(2);
 const option = (name, fallback) =>
   args.find((arg) => arg.startsWith(`--${name}=`))?.split("=").slice(1).join("=") ??
   fallback;
 const live = args.includes("--live");
+const update = args.includes("--update");
 const baseUrl = option("base-url", "http://localhost:3000").replace(/\/$/, "");
 const waitSeconds = Number(option("wait", "0"));
 
@@ -62,89 +70,117 @@ const fail = (message) => {
 };
 const section = (title) => console.log(`\n${title}`);
 
-/* ---------- The SDK: methods and parameters ---------- */
+/* ---------- The API reference ---------- */
 
-/** Lists the methods of the SDK client as `resource.method`, with the class of each resource */
-const readSdkMethods = () => {
-  const { createBibleClient } = require(SDK);
-  //The key is not used. No request is sent.
-  const client = createBibleClient({ apiKey: "parity-check" });
-  const methods = new Map();
+/**
+ * Gets the published API reference and keeps only the data that the parity check
+ * uses: each endpoint, its HTTP methods, and its query parameters. For a parameter
+ * with fixed values, it keeps the values.
+ */
+const fetchReference = async () => {
+  const response = await fetch(REFERENCE_URL, {
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) {
+    throw new Error(`${REFERENCE_URL} gave the status ${response.status}`);
+  }
+  const document = await response.json();
 
-  for (const [resource, handle] of Object.entries(client)) {
-    const prototype = Object.getPrototypeOf(handle);
-    for (const method of Object.getOwnPropertyNames(prototype)) {
-      if (method !== "constructor" && typeof handle[method] === "function") {
-        methods.set(`${resource}.${method}`, handle.constructor.name);
+  //A parameter can be a reference to a shared definition (`$ref`)
+  const resolve = (parameter) =>
+    parameter.$ref
+      ? document.components.parameters[parameter.$ref.split("/").pop()]
+      : parameter;
+
+  const endpoints = {};
+  for (const path of Object.keys(document.paths).sort()) {
+    const item = document.paths[path];
+    const methods = Object.keys(item)
+      .filter((key) => typeof item[key] === "object" && key !== "parameters")
+      .sort();
+
+    const parameters = {};
+    for (const method of methods) {
+      for (const parameter of (item[method].parameters ?? []).map(resolve)) {
+        if (parameter.in !== "query") continue;
+        const values = parameter.schema?.enum ?? parameter.enum;
+        parameters[parameter.name] = values ? { values: values.map(String) } : {};
+      }
+    }
+    endpoints[path] = { methods, parameters };
+  }
+
+  return { source: REFERENCE_URL, version: document.info?.version ?? "", endpoints };
+};
+
+/** Lists the differences between two references, as sentences */
+const referenceDifferences = (snapshot, published) => {
+  const differences = [];
+  const paths = new Set([
+    ...Object.keys(snapshot.endpoints),
+    ...Object.keys(published.endpoints),
+  ]);
+
+  for (const path of [...paths].sort()) {
+    const before = snapshot.endpoints[path];
+    const after = published.endpoints[path];
+    if (!before) {
+      differences.push(`${path} is a new endpoint`);
+      continue;
+    }
+    if (!after) {
+      differences.push(`${path} is no longer in the reference`);
+      continue;
+    }
+    if (before.methods.join() !== after.methods.join()) {
+      differences.push(`${path} changed its methods to ${after.methods.join(", ")}`);
+    }
+    const names = new Set([
+      ...Object.keys(before.parameters),
+      ...Object.keys(after.parameters),
+    ]);
+    for (const name of [...names].sort()) {
+      const was = before.parameters[name];
+      const is = after.parameters[name];
+      if (!was) differences.push(`${path} has the new parameter "${name}"`);
+      else if (!is) differences.push(`${path} no longer has the parameter "${name}"`);
+      else if ((was.values ?? []).join() !== (is.values ?? []).join()) {
+        differences.push(
+          `${path}: the values of "${name}" changed to ${(is.values ?? []).join(", ") || "any value"}`,
+        );
       }
     }
   }
-  return methods;
+  return differences;
 };
 
-/** Reads the type definitions of the SDK, without comments */
-const readSdkTypes = () => {
-  const entry = require.resolve(SDK);
-  const file = join(dirname(entry), "index.d.ts");
-  return readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-};
-
-/** Returns the text between the `{` at `start` and the `}` that closes it */
-const block = (text, start) => {
-  let depth = 0;
-  for (let index = start; index < text.length; index++) {
-    if (text[index] === "{") depth++;
-    if (text[index] === "}" && --depth === 0) {
-      return text.slice(start + 1, index);
-    }
-  }
-  return null;
-};
-
-/** Returns the field names of a `type X = {...}` or `interface X {...}`, and follows `type X = Y` */
-const typeFields = (types, name, seen = new Set()) => {
-  if (seen.has(name)) return null;
-  seen.add(name);
-
-  const alias = types.match(new RegExp(`\\btype ${name} = (\\w+);`));
-  if (alias) return typeFields(types, alias[1], seen);
-
-  const declaration = types.match(
-    new RegExp(`\\b(?:type ${name} = |interface ${name} )\\{`),
+/** Writes the snapshot again from the published reference */
+const runUpdate = async () => {
+  const published = await fetchReference();
+  writeFileSync(snapshotPath, JSON.stringify(published, null, 2) + "\n");
+  console.log(
+    `Wrote parity/api-reference.json from ${REFERENCE_URL} (version ${published.version}, ${Object.keys(published.endpoints).length} endpoints).`,
   );
-  if (!declaration) return null;
-
-  const body = block(types, declaration.index + declaration[0].length - 1);
-  if (body === null) return null;
-
-  //Keep only the fields at the top level of the type
-  let depth = 0;
-  let topLevel = "";
-  for (const character of body) {
-    if (character === "{") depth++;
-    if (depth === 0) topLevel += character;
-    if (character === "}") depth--;
-  }
-  return [...topLevel.matchAll(/(\w+)\??:/g)].map((match) => match[1]);
+  console.log('Run "npm run parity" to see what the demo must add.');
 };
 
-/**
- * Returns the parameter names of a method: the fields of its `params` argument.
- * Returns an empty list for a method without `params`, and `null` if the method
- * is not in the type definitions.
- */
-const methodParams = (types, className, method) => {
-  const declaration = types.match(new RegExp(`declare class ${className} \\{`));
-  if (!declaration) return null;
-  const body = block(types, declaration.index + declaration[0].length - 1);
-  const signature = body?.match(new RegExp(`\\n\\s*${method}\\(([^)]*)\\)`));
-  if (!signature) return null;
+/** Runs the checks, and returns `true` if all of them pass */
+const runChecks = async () => {
+if (!existsSync(snapshotPath)) {
+  console.log('parity/api-reference.json does not exist. Run "npm run parity:update" first.');
+  return false;
+}
+const reference = JSON.parse(readFileSync(snapshotPath, "utf8"));
 
-  const paramsType = signature[1].match(/\bparams\??: (\w+)/);
-  return paramsType ? typeFields(types, paramsType[1]) : [];
-};
+/* ---------- The demo ---------- */
 
-/* ---------- The demo: source code ---------- */
+/** Path of the demo page for an endpoint: `/bibles/{bibleId}` is `app/bibles/[bibleId]/page.tsx` */
+const pageFile = (path) =>
+  join("app", ...path.split("/").filter(Boolean).map((part) => part.replace(/^\{(.+)\}$/, "[$1]")), "page.tsx");
+
+/** Path of an endpoint with the sample IDs of the manifest */
+const samplePath = (path, entry) =>
+  path.replace(/\{(\w+)\}/g, (_, name) => entry.ids?.[name] ?? `{${name}}`);
 
 const sourceFiles = (directory) =>
   readdirSync(join(root, directory), { withFileTypes: true }).flatMap((entry) => {
@@ -153,77 +189,99 @@ const sourceFiles = (directory) =>
     return /\.tsx?$/.test(entry.name) ? [path] : [];
   });
 
+const read = (path) => readFileSync(join(root, path), "utf8");
+const hasText = (source, text) =>
+  source.includes(`"${text}"`) || source.includes(`'${text}'`);
+
 /* ---------- Static checks ---------- */
 
-const sdkMethods = readSdkMethods();
-const sdkTypes = readSdkTypes();
-//The SDK does not export its package.json, so read the file from the folder of the SDK
-const sdkVersion = JSON.parse(
-  readFileSync(join(root, "node_modules", SDK, "package.json"), "utf8"),
-).version;
 const covered = Object.entries(coverage).filter(([, entry]) => !entry.deferred);
 
-console.log(`Parity check of the demo against ${SDK} ${sdkVersion}`);
+console.log(
+  `Parity check of the demo against the API.Bible API reference, version ${reference.version}`,
+);
 
-section("1. Methods: the SDK and the manifest have the same methods");
-for (const method of sdkMethods.keys()) {
-  const entry = coverage[method];
+section("1. Endpoints: the reference and the manifest have the same endpoints");
+for (const [path, endpoint] of Object.entries(reference.endpoints)) {
+  const entry = coverage[path];
+  const unknownMethods = endpoint.methods.filter((method) => method !== "get");
   if (!entry) {
-    fail(`${method} is in the SDK, but not in parity/coverage.mjs`);
+    fail(`${path} is in the reference, but not in parity/coverage.mjs`);
   } else if (entry.deferred) {
-    pass(`${method} (deferred: ${entry.deferred})`);
-  } else if (!entry.route) {
-    fail(`${method} has no "route" and no "deferred" reason`);
+    pass(`${path} (deferred: ${entry.deferred})`);
+  } else if (unknownMethods.length) {
+    fail(`${path} has the method ${unknownMethods.join(", ")}. The demo shows only GET requests.`);
   } else {
-    pass(method);
+    pass(path);
   }
 }
-for (const method of Object.keys(coverage)) {
-  if (!sdkMethods.has(method)) {
-    fail(`${method} is in parity/coverage.mjs, but not in the SDK`);
+for (const path of Object.keys(coverage)) {
+  if (!reference.endpoints[path]) {
+    fail(`${path} is in parity/coverage.mjs, but not in the reference`);
   }
 }
 
-section("2. Parameters: the SDK and the manifest have the same parameters");
-for (const [method, entry] of covered) {
-  if (!sdkMethods.has(method)) continue;
-  const sdkParams = methodParams(
-    sdkTypes,
-    sdkMethods.get(method),
-    method.split(".")[1],
-  );
+section("2. Parameters: the reference and the manifest have the same query parameters");
+for (const [path, entry] of covered) {
+  const endpoint = reference.endpoints[path];
+  if (!endpoint) continue;
+  const referenceParams = Object.keys(endpoint.parameters);
   const manifestParams = Object.keys(entry.params ?? {});
 
-  if (sdkParams === null) {
-    fail(`${method}: cannot read its parameters from the type definitions of the SDK`);
-    continue;
-  }
-  const missing = sdkParams.filter((name) => !manifestParams.includes(name));
-  const unknown = manifestParams.filter((name) => !sdkParams.includes(name));
+  const missing = referenceParams.filter((name) => !manifestParams.includes(name));
+  const unknown = manifestParams.filter((name) => !referenceParams.includes(name));
   for (const name of missing) {
-    fail(`${method}: the SDK has the parameter "${name}", but the manifest does not`);
+    fail(`${path}: the reference has the parameter "${name}", but the manifest does not`);
   }
   for (const name of unknown) {
-    fail(`${method}: the manifest has the parameter "${name}", but the SDK does not`);
+    fail(`${path}: the manifest has the parameter "${name}", but the reference does not`);
   }
   if (!missing.length && !unknown.length) {
-    pass(`${method} (${sdkParams.length ? sdkParams.join(", ") : "no parameters"})`);
+    const deferred = manifestParams.filter((name) => entry.params[name].deferred);
+    pass(
+      `${path} (${referenceParams.length ? referenceParams.join(", ") : "no parameters"})` +
+        (deferred.length ? ` (deferred: ${deferred.join(", ")})` : ""),
+    );
   }
 }
 
-section("3. Calls: the demo calls each covered method");
-const sources = [...sourceFiles("app"), ...sourceFiles("utils")].map((path) => ({
-  path,
-  text: readFileSync(join(root, path), "utf8"),
-}));
-for (const [method] of covered) {
-  const [resource, name] = method.split(".");
-  const call = new RegExp(`client\\s*\\.\\s*${resource}\\s*\\.\\s*${name}\\(`);
-  const callers = sources.filter(({ text }) => call.test(text));
-  if (callers.length) {
-    pass(`${method} (${callers.map(({ path }) => path.replaceAll("\\", "/")).join(", ")})`);
+section("3. Source: the demo has a page for each covered endpoint and a control for each parameter");
+//Parameters that many pages use are in the shared files, not in the page
+const shared = sourceFiles("utils").map(read).join("\n");
+for (const [path, entry] of covered) {
+  const file = pageFile(path);
+  if (!existsSync(join(root, file))) {
+    fail(`${path}: the demo has no page at ${file.replaceAll("\\", "/")}`);
+    continue;
+  }
+  const page = read(file);
+  const problems = [];
+
+  if (!entry.sdk) {
+    problems.push('the manifest has no "sdk" method');
   } else {
-    fail(`${method}: no file in app/ or utils/ calls client.${method}()`);
+    const [resource, method] = entry.sdk.split(".");
+    if (!new RegExp(`client\\s*\\.\\s*${resource}\\s*\\.\\s*${method}\\(`).test(page)) {
+      problems.push(`the page does not call client.${entry.sdk}()`);
+    }
+  }
+  for (const [name, param] of Object.entries(entry.params ?? {})) {
+    if (param.deferred) continue;
+    //A parameter with a different name on the page, such as `page` for `offset`, is checked live
+    if (!param.page && !hasText(page, name) && !hasText(shared, name)) {
+      problems.push(`the source does not contain the parameter "${name}"`);
+    }
+    for (const value of reference.endpoints[path]?.parameters[name]?.values ?? []) {
+      if (!hasText(page, value) && !hasText(shared, value)) {
+        problems.push(`the source does not contain the value "${value}" of "${name}"`);
+      }
+    }
+  }
+
+  if (problems.length) {
+    for (const problem of problems) fail(`${path}: ${problem}`);
+  } else {
+    pass(`${path} → ${file.replaceAll("\\", "/")}`);
   }
 }
 
@@ -250,12 +308,15 @@ const waitForDemo = async () => {
   }
 };
 
-const checkPage = async (method, entry) => {
-  const params = Object.values(entry.params ?? {}).filter(
-    (param) => !param.deferred,
+const checkPage = async (path, entry) => {
+  const params = Object.entries(entry.params ?? {})
+    .filter(([, param]) => !param.deferred)
+    .map(([name, param]) => ({ name, ...param }));
+  const route = samplePath(path, entry);
+  const query = new URLSearchParams(
+    params.map(({ name, page = name, sample }) => [page, sample]),
   );
-  const query = new URLSearchParams(params.map(({ name, sample }) => [name, sample]));
-  const pagePath = entry.route + (params.length ? `?${query}` : "");
+  const pagePath = route + (params.length ? `?${query}` : "");
 
   let html;
   try {
@@ -264,17 +325,17 @@ const checkPage = async (method, entry) => {
     });
     html = await response.text();
     if (!response.ok) {
-      return fail(`${method}: ${pagePath} gave the status ${response.status}`);
+      return fail(`${path}: ${pagePath} gave the status ${response.status}`);
     }
   } catch (error) {
-    return fail(`${method}: cannot load ${pagePath} (${error.message})`);
+    return fail(`${path}: cannot load ${pagePath} (${error.message})`);
   }
 
   //Each page writes the API request that it made into these attributes
   const requestUrl = html.match(/data-api-request="([^"]*)"/)?.[1];
   const status = html.match(/data-api-status="([^"]*)"/)?.[1];
   if (!requestUrl) {
-    return fail(`${method}: ${pagePath} does not show an API request. The page or the API call failed.`);
+    return fail(`${path}: ${pagePath} does not show an API request. The page or the API call failed.`);
   }
 
   const request = new URL(decodeHtml(requestUrl));
@@ -282,43 +343,64 @@ const checkPage = async (method, entry) => {
   if (status !== "200") {
     problems.push(`the API gave the status ${status}`);
   }
-  if (request.pathname !== `/v1${entry.route}`) {
-    problems.push(`the API path is ${request.pathname}, not /v1${entry.route}`);
+  if (request.pathname !== `/v1${route}`) {
+    problems.push(`the API path is ${request.pathname}, not /v1${route}`);
   }
-  for (const { name, sample, wire = name, expect = sample } of params) {
-    const sent = request.searchParams.get(wire);
+  for (const { name, sample, expect = sample } of params) {
+    const sent = request.searchParams.get(name);
     if (sent !== expect) {
       problems.push(
-        `"${wire}" is ${sent === null ? "absent" : `"${sent}"`} in the API request, not "${expect}"`,
+        `"${name}" is ${sent === null ? "absent" : `"${sent}"`} in the API request, not "${expect}"`,
       );
     }
   }
-  const known = params.map(({ name, wire = name }) => wire);
   for (const name of request.searchParams.keys()) {
-    if (!known.includes(name)) {
+    if (!params.some((param) => param.name === name)) {
       problems.push(`the API request has "${name}", which is not in the manifest`);
     }
   }
 
   if (problems.length) {
-    for (const problem of problems) fail(`${method}: ${problem}`);
+    for (const problem of problems) fail(`${path}: ${problem}`);
   } else {
-    pass(`${method} → ${request.pathname}${request.search}`);
+    pass(`${path} → ${request.pathname}${request.search}`);
   }
 };
 
 if (live) {
-  section(`4. Pages: each covered page sends the API request that the manifest describes (${baseUrl})`);
+  section(`4. Reference: the published reference is the same as the snapshot (${REFERENCE_URL})`);
+  try {
+    const differences = referenceDifferences(reference, await fetchReference());
+    if (differences.length) {
+      for (const difference of differences) fail(difference);
+      console.log('        Run "npm run parity:update", then "npm run parity".');
+    } else {
+      pass(`${Object.keys(reference.endpoints).length} endpoints, no differences`);
+    }
+  } catch (error) {
+    fail(`cannot get the published reference (${error.message})`);
+  }
+
+  section(`5. Pages: each covered page sends the API request that the manifest describes (${baseUrl})`);
   if (await waitForDemo()) {
-    for (const [method, entry] of covered) {
-      await checkPage(method, entry);
+    for (const [path, entry] of covered) {
+      await checkPage(path, entry);
     }
   } else {
     fail(`cannot connect to the demo at ${baseUrl}. Start it with "npm run dev" or "npm run start".`);
   }
 } else {
-  console.log('\n4. Pages: not run. Use "npm run parity:live" with the demo running.');
+  console.log('\n4. Reference and 5. Pages: not run. Use "npm run parity:live" with the demo running.');
 }
 
 console.log(`\n${passes} passed, ${failures} failed`);
-process.exit(failures ? 1 : 0);
+return failures === 0;
+};
+
+//Set the exit code and let Node stop by itself. `process.exit()` immediately after a
+//network request can stop Node on Windows with an error.
+if (update) {
+  await runUpdate();
+} else {
+  process.exitCode = (await runChecks()) ? 0 : 1;
+}

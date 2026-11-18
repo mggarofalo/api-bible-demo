@@ -1,14 +1,14 @@
 name: Parity
 
-# Keeps the demo in sync with the API.Bible SDK and the live API.
+# Keeps the demo in sync with the API reference that API.Bible publishes.
 #
-#   static  Runs on every push and pull request. Needs no secrets. Fails when the SDK
-#           has a method or parameter that the demo does not show (see parity/coverage.mjs).
-#           A dependency update that changes the SDK fails here, on its own pull request.
-#   live    Runs each night, and on request. Builds the demo, starts it, and checks that
-#           each page sends the API request that its controls describe. Fails when the
-#           live API and the SDK no longer agree. Needs the repository secret
-#           API_BIBLE_API_KEY.
+#   static  Runs on every push and pull request. Needs no secrets and no network access
+#           to the API. Fails when the demo does not account for an endpoint or a query
+#           parameter of the reference snapshot (see parity/coverage.mjs).
+#   live    Runs each night, and on request. Fails when the published reference is
+#           different from the snapshot (the API changed), or when a page of the built
+#           demo does not send the API request that its controls describe. Needs the
+#           repository secret API_BIBLE_API_KEY.
 
 on:
   push:

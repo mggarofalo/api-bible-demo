@@ -11,7 +11,9 @@ import {
   contentOptions,
   contentParams,
   PageSearchParams,
+  orgIdQuery,
   readParams,
+  USE_ORG_ID,
 } from "@/utils/queryParams";
 import { notFound } from "next/navigation";
 
@@ -29,7 +31,7 @@ export default async function PassagePage(props: PassagePageProps) {
   const { bibleId, passageId } = await props.params;
   //Read the query parameters that the user selected on the page
   const queryParams = readParams(
-    contentParams(),
+    contentParams({}, [USE_ORG_ID]),
     await props.searchParams,
   );
 
@@ -40,8 +42,10 @@ export default async function PassagePage(props: PassagePageProps) {
     data: passage,
     exchange,
     body,
-  } = await traced(() =>
-    client.passages.get(bibleId, passageId, contentOptions(queryParams)),
+  } = await traced(
+    () => client.passages.get(bibleId, passageId, contentOptions(queryParams)),
+    //The SDK does not have `use-org-id`, so `traced` adds it to the request
+    orgIdQuery(queryParams),
   );
 
   if (!passage) {

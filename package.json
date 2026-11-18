@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "parity": "node scripts/parity.mjs",
-    "parity:live": "node scripts/parity.mjs --live"
+    "parity:live": "node scripts/parity.mjs --live",
+    "parity:update": "node scripts/parity.mjs --update"
   },
   "dependencies": {
     "@americanbible/api-bible-sdk": "^2.0.2",

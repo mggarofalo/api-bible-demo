@@ -48,9 +48,11 @@ export const textParam = (
  * and sections). See the [Verse Content Guide](https://docs.api.bible/guides/verses#verse-content).
  *
  * @param defaults  Default values that are different for a page
+ * @param extra     Other parameters of the endpoint, shown before `parallels`
  */
 export const contentParams = (
   defaults: Record<string, string> = {},
+  extra: ParamDefinition[] = [],
 ): ParamDefinition[] =>
   [
     { name: "content-type", options: ["html", "json", "text"], defaultValue: "html" },
@@ -59,6 +61,7 @@ export const contentParams = (
     { name: "include-chapter-numbers", options: BOOLEAN, defaultValue: "false" },
     { name: "include-verse-numbers", options: BOOLEAN, defaultValue: "true" },
     { name: "include-verse-spans", options: BOOLEAN, defaultValue: "true" },
+    ...extra,
     {
       name: "parallels",
       options: [],
@@ -123,6 +126,18 @@ export const paramList = (params: QueryParam[], name: string) => {
     .filter(Boolean);
   return items.length ? items : undefined;
 };
+
+/**
+ * `use-org-id` parameter of the verse and passage endpoints. When it is `true`, the API
+ * finds verses by their `orgId` (the ID in the original versification), not by their `id`.
+ *
+ * The SDK does not have this parameter, so pages send it with `orgIdQuery`.
+ */
+export const USE_ORG_ID = flagParam("use-org-id", "false");
+
+/** Gives the `use-org-id` value to `traced`, which adds it to the request */
+export const orgIdQuery = (params: QueryParam[]): Record<string, string> =>
+  paramFlag(params, "use-org-id") ? { "use-org-id": "true" } : {};
 
 /** Converts the values of `contentParams` to the options of the SDK */
 export const contentOptions = (

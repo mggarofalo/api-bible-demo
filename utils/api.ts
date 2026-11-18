@@ -18,25 +18,37 @@ export type Exchange = {
   };
 };
 
+type Trace = {
+  /** Query parameters to add to each request, for parameters that the SDK does not have */
+  extraQuery: Record<string, string>;
+  recorded: { exchange: Exchange; body: unknown }[];
+};
+
 //Headers whose values must never be shown on a page
 const SECRET_HEADERS = ["api-key", "authorization"];
 
-//Collects the exchanges made inside a single `traced` call, keeping concurrent page renders apart
-const exchanges = new AsyncLocalStorage<{ exchange: Exchange; body: unknown }[]>();
+//Holds the data of a single `traced` call, keeping concurrent page renders apart
+const traces = new AsyncLocalStorage<Trace>();
 
 /**
  * Stand-in for `fetch` that records each request made inside a `traced` call, along
  * with its response. Outside of `traced` it behaves exactly like `fetch`.
  */
 const recordingFetch: typeof fetch = async (input, init) => {
-  const recorded = exchanges.getStore();
-  if (!recorded) {
+  const trace = traces.getStore();
+  if (!trace) {
     return fetch(input, init);
   }
 
-  const request = new Request(input, init);
+  //Add the query parameters that the SDK cannot send
+  const url = new URL(new Request(input).url);
+  for (const [name, value] of Object.entries(trace.extraQuery)) {
+    url.searchParams.set(name, value);
+  }
+
+  const request = new Request(url, init);
   const started = performance.now();
-  const response = await fetch(input, init);
+  const response = await fetch(url, init);
   const durationMs = Math.round(performance.now() - started);
 
   //Read a copy of the body, leaving the original response for the SDK
@@ -48,7 +60,7 @@ const recordingFetch: typeof fetch = async (input, init) => {
     //Not JSON, keep the text
   }
 
-  recorded.push({
+  trace.recorded.push({
     body,
     exchange: {
       request: {
@@ -86,17 +98,23 @@ export const client = createBibleClient({
  *
  * Pages use this to show the request, response and raw JSON behind their content.
  *
+ * @param call        The SDK call.
+ * @param extraQuery  Query parameters that the API has but the SDK does not. They are
+ *                    added to the request, so the demo can show the full API.
+ *
  * @example
- *   const { data: verse, exchange, body } = await traced(() =>
- *     client.verses.get(bibleId, verseId),
+ *   const { data: verse, exchange, body } = await traced(
+ *     () => client.verses.get(bibleId, verseId),
+ *     { "use-org-id": "true" },
  *   );
  */
 export async function traced<T extends object>(
   call: () => Promise<T>,
+  extraQuery: Record<string, string> = {},
 ): Promise<T & { exchange?: Exchange; body: object }> {
-  const recorded: { exchange: Exchange; body: unknown }[] = [];
-  const result = await exchanges.run(recorded, call);
-  const last = recorded.at(-1);
+  const trace: Trace = { extraQuery, recorded: [] };
+  const result = await traces.run(trace, call);
+  const last = trace.recorded.at(-1);
 
   return {
     ...result,

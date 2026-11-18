@@ -11,7 +11,9 @@ import {
   contentOptions,
   contentParams,
   PageSearchParams,
+  orgIdQuery,
   readParams,
+  USE_ORG_ID,
   toQueryString,
 } from "@/utils/queryParams";
 
@@ -29,7 +31,7 @@ export default async function VersePage(props: VersePageProps) {
   const { bibleId, verseId } = await props.params;
   //Read the query parameters that the user selected on the page
   const queryParams = readParams(
-    contentParams(),
+    contentParams({}, [USE_ORG_ID]),
     await props.searchParams,
   );
 
@@ -40,8 +42,10 @@ export default async function VersePage(props: VersePageProps) {
     data: verse,
     exchange,
     body,
-  } = await traced(() =>
-    client.verses.get(bibleId, verseId, contentOptions(queryParams)),
+  } = await traced(
+    () => client.verses.get(bibleId, verseId, contentOptions(queryParams)),
+    //The SDK does not have `use-org-id`, so `traced` adds it to the request
+    orgIdQuery(queryParams),
   );
 
   return (

@@ -55,26 +55,31 @@ To move through a Bible, use the sidebar (the `>>` button at the top left), or c
 
 ### Keeping the Demo in Sync
 
-The demo must show all that the API can do, and continue to do so when the API or the SDK changes. Two files make this a check that a machine can run:
+The demo must show all that the API can do, and continue to do so when the API changes. The authority is the [API reference](https://api.bible/api-reference) that API.Bible publishes, which is an OpenAPI document at `https://rest.api.bible/v1/swagger.json`. Three files make this a check that a machine can run:
 
-- [parity/coverage.mjs](./parity/coverage.mjs) is the coverage manifest. For each method of the SDK client it gives the page that shows the method and the query parameters of that page, or the reason that the demo does not show it yet.
-- [scripts/parity.mjs](./scripts/parity.mjs) compares the SDK, the manifest and the demo, and fails when they do not agree.
+- [parity/api-reference.json](./parity/api-reference.json) is a snapshot of the reference: each endpoint, with its query parameters and their fixed values.
+- [parity/coverage.mjs](./parity/coverage.mjs) is the coverage manifest. For each endpoint of the reference it gives the query parameters that the demo page shows, or the reason that the demo does not show the endpoint yet.
+- [scripts/parity.mjs](./scripts/parity.mjs) compares the reference, the manifest and the demo, and fails when they do not agree.
 
 ```sh
-npm run parity        # static checks: no server and no API key necessary
-npm run parity:live   # also checks each page of a running demo against the live API
+npm run parity          # static checks: no server, network or API key necessary
+npm run parity:live     # also checks the published reference and each page of a running demo
+npm run parity:update   # gets the published reference and writes the snapshot again
 ```
 
-| Check         | What it compares                                                                 | A failure means                                                        |
-| ------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| 1. Methods    | The methods of the SDK client and the entries of the manifest                    | The SDK has a new method, or removed one                               |
-| 2. Parameters | The parameters in the type definitions of the SDK and those in the manifest      | The SDK has a new parameter, or removed one                            |
-| 3. Calls      | The covered methods and the source code of the demo                              | A page no longer calls the method that the manifest says it shows      |
-| 4. Pages      | The API request that each page sends (with every parameter set) and the manifest | A control does not reach the API, or the live API and the SDK disagree |
+| Check         | What it compares                                                                   | A failure means                                                     |
+| ------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 1. Endpoints  | The endpoints of the snapshot and the entries of the manifest                      | The manifest does not account for an endpoint                       |
+| 2. Parameters | The query parameters of the snapshot and those of the manifest                     | The manifest does not account for a parameter                       |
+| 3. Source     | The manifest and the source code: a page at the same path, a control per parameter | A page or a control is gone, or a fixed value has no option         |
+| 4. Reference  | The published reference and the snapshot (live)                                    | The API changed. Update the snapshot, then run the static checks    |
+| 5. Pages      | The API request that each page sends, with every parameter set (live)              | A control does not reach the API, or the API refuses a valid request |
 
-When a check fails, there are two ways to make it pass: add the page or the control and describe it in the manifest, or add a `deferred` reason to the manifest. Thus each gap is a decision that is in the repository, and not an omission.
+When the API changes, check 4 fails first. Run `npm run parity:update`, and then checks 1 to 3 list what the demo does not show yet. There are two ways to make them pass: add the page or the control and describe it in the manifest, or add a `deferred` reason to the manifest. Thus each gap is a decision that is in the repository, and not an omission.
 
-The [Parity workflow](./.github/workflows/parity.yml) runs the static checks on every push and pull request, so an SDK update fails on its own pull request. It runs the live checks each night. The live checks need the repository secret `API_BIBLE_API_KEY`.
+The demo calls the API through the [API.Bible SDK](https://www.npmjs.com/package/@americanbible/api-bible-sdk), but the SDK is not the authority. Where the API has a parameter that the SDK does not (at this time, `use-org-id`), the demo adds the parameter to the request (see `traced` in [utils/api.ts](./utils/api.ts)).
+
+The [Parity workflow](./.github/workflows/parity.yml) runs the static checks on every push and pull request. It runs the live checks each night. The live checks need the repository secret `API_BIBLE_API_KEY`.
 
 ### Local Setup
 
