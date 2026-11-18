@@ -105,6 +105,23 @@ The demo calls the API through the [API.Bible SDK](https://www.npmjs.com/package
 
 The [Parity workflow](./.github/workflows/parity.yml) runs the static checks on every push and pull request. It runs the live checks each night. The live checks need the repository secret `API_BIBLE_API_KEY`.
 
+### Unit Tests
+
+The unit tests are in [tests](./tests). They use [Vitest](https://vitest.dev) and [Testing Library](https://testing-library.com). They make no calls to the API.
+
+```bash
+npm test                # runs the tests one time
+npm run test:watch      # runs the tests again after each change
+npm run test:coverage   # runs the tests and measures the coverage
+```
+
+The tests cover `utils`, `components`, the route handler in `app/api`, the coverage manifest and the logic of the parity check ([scripts/parity-lib.mjs](./scripts/parity-lib.mjs)). The pages in `app` are async server components. The live parity check tests them, not the unit tests.
+
+`npm run test:coverage` fails when the coverage is less than the thresholds in [vitest.config.mts](./vitest.config.mts) (95%). There are two gates:
+
+- The [Tests workflow](./.github/workflows/test.yml) runs lint, the type check and the tests with coverage on every push and pull request.
+- The pre-commit hook ([.githooks/pre-commit](./.githooks/pre-commit)) runs lint, the type check, the static parity checks and the tests with coverage before each commit. `npm install` sets up the hook.
+
 ### Local Setup
 
 This application has been configured to minimize local setup time. To get this application running locally, follow the steps below:

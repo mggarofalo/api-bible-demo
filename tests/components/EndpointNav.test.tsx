@@ -1,0 +1,249 @@
+import { render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BibleNavProvider } from "@/components/BibleNav";
+import { EndpointNav, Tip } from "@/components/EndpointNav";
+import { getEndpoint } from "@/utils/apiReference";
+import type { SidebarBook } from "@/utils/getSidebarBooks";
+
+const route = vi.hoisted(() => ({
+  pathname: "/",
+  params: {} as Record<string, string | string[] | undefined>,
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => route.pathname,
+  useParams: () => route.params,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+
+const books: SidebarBook[] = [
+  {
+    id: "GEN",
+    name: "Genesis",
+    chapters: [
+      { id: "GEN.1", number: "1" },
+      { id: "GEN.2", number: "2" },
+    ],
+  },
+];
+
+const bibles = [
+  { id: "bible1", name: "Test Bible", abbreviation: "TB", language: "English" },
+];
+
+const setRoute = (pathname: string, params: Record<string, string> = {}) => {
+  route.pathname = pathname;
+  route.params = params;
+};
+
+const renderNav = (bibleList = bibles) =>
+  render(
+    <BibleNavProvider bibleId="bible1" bibles={bibleList} books={books}>
+      <EndpointNav />
+    </BibleNavProvider>,
+  );
+
+const linkNames = () =>
+  screen.getAllByRole("link").map((link) => link.textContent);
+
+describe("EndpointNav", () => {
+  beforeEach(() => setRoute("/"));
+
+  it("renders nothing outside a Bible", () => {
+    const { container } = render(<EndpointNav />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows the Bible links with the abbreviation as the row name", () => {
+    setRoute("/bibles/bible1");
+    renderNav();
+
+    const nav = screen.getByRole("navigation", {
+      name: "Endpoints for this location",
+    });
+    expect(within(nav).getByText("TB")).toBeInTheDocument();
+    expect(linkNames()).toEqual(["Bible", "Books", "Search"]);
+    expect(screen.getByRole("link", { name: "Bible" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1",
+    );
+    expect(screen.getByRole("link", { name: "Books" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/books",
+    );
+    expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/search",
+    );
+  });
+
+  it("names the row Bible when the Bible is not in the list", () => {
+    setRoute("/bibles/bible1");
+    renderNav([]);
+    expect(screen.getByText("Bible", { selector: "span.text-zinc-500" })).toBeInTheDocument();
+  });
+
+  it("adds the book links on a book page", () => {
+    setRoute("/bibles/bible1/books/GEN", { bookId: "GEN" });
+    renderNav();
+
+    expect(screen.getByText("Genesis")).toBeInTheDocument();
+    expect(linkNames()).toEqual([
+      "Bible",
+      "Books",
+      "Search",
+      "Book",
+      "Chapters",
+      "Sections",
+    ]);
+    expect(screen.getByRole("link", { name: "Book" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/books/GEN",
+    );
+    expect(screen.getByRole("link", { name: "Chapters" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/books/GEN/chapters",
+    );
+    expect(screen.getByRole("link", { name: "Sections" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/books/GEN/sections",
+    );
+  });
+
+  it("adds the chapter links on a chapter page", () => {
+    setRoute("/bibles/bible1/chapters/GEN.2", { chapterId: "GEN.2" });
+    renderNav();
+
+    expect(screen.getByText("Genesis 2")).toBeInTheDocument();
+    expect(linkNames()).toEqual([
+      "Bible",
+      "Books",
+      "Search",
+      "Book",
+      "Chapters",
+      "Sections",
+      "Chapter",
+      "Verses",
+      "Sections",
+    ]);
+    expect(screen.getByRole("link", { name: "Chapter" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/chapters/GEN.2",
+    );
+    expect(screen.getByRole("link", { name: "Verses" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/chapters/GEN.2/verses",
+    );
+    expect(screen.getAllByRole("link", { name: "Sections" })[1]).toHaveAttribute(
+      "href",
+      "/bibles/bible1/chapters/GEN.2/sections",
+    );
+  });
+
+  it("adds the verse link on a verse page", () => {
+    setRoute("/bibles/bible1/verses/GEN.1.3", { verseId: "GEN.1.3" });
+    renderNav();
+
+    expect(screen.getByText("Genesis 1:3")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Verse" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/verses/GEN.1.3",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Passage" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("adds the passage link on a passage page", () => {
+    setRoute("/bibles/bible1/passages/GEN.1.1-GEN.1.3", {
+      passageId: "GEN.1.1-GEN.1.3",
+    });
+    renderNav();
+
+    expect(screen.getByRole("link", { name: "Verse" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/verses/GEN.1.1",
+    );
+    expect(screen.getByRole("link", { name: "Passage" })).toHaveAttribute(
+      "href",
+      "/bibles/bible1/passages/GEN.1.1-GEN.1.3",
+    );
+  });
+
+  it("shows only the Bible links for a book that the Bible does not have", () => {
+    setRoute("/bibles/bible1/books/XXX", { bookId: "XXX" });
+    renderNav();
+    expect(linkNames()).toEqual(["Bible", "Books", "Search"]);
+  });
+
+  it("marks only the link of the current page", () => {
+    setRoute("/bibles/bible1/books/GEN/chapters", { bookId: "GEN" });
+    renderNav();
+
+    const current = screen
+      .getAllByRole("link")
+      .filter((link) => link.getAttribute("aria-current") === "page");
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveTextContent("Chapters");
+    expect(current[0]).toHaveAttribute(
+      "href",
+      "/bibles/bible1/books/GEN/chapters",
+    );
+  });
+
+  it("marks no link on a page that has no link in the nav", () => {
+    setRoute("/bibles/bible1/books/GEN/something", { bookId: "GEN" });
+    renderNav();
+    expect(
+      document.querySelector('[aria-current="page"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  describe("help tips", () => {
+    it("shows the route and the summary from the API reference", () => {
+      setRoute("/bibles/bible1");
+      renderNav();
+
+      const bible = screen.getByRole("link", { name: "Bible" });
+      const tip = within(bible.parentElement as HTMLElement).getByRole(
+        "tooltip",
+        { hidden: true },
+      );
+      const summary = getEndpoint("/bibles/{bibleId}")?.summary;
+      expect(summary).toBeTruthy();
+      expect(tip).toHaveTextContent("/bibles/{bibleId}");
+      expect(tip).toHaveTextContent(summary as string);
+    });
+
+    it("has the reference summary in the tip of every link", () => {
+      setRoute("/bibles/bible1/passages/GEN.1.1-GEN.1.3", {
+        passageId: "GEN.1.1-GEN.1.3",
+      });
+      renderNav();
+
+      const tips = screen.getAllByRole("tooltip", { hidden: true });
+      expect(tips).toHaveLength(screen.getAllByRole("link").length);
+      for (const tip of tips) {
+        const route = tip.firstElementChild?.textContent ?? "";
+        const summary = getEndpoint(route)?.summary;
+        expect(summary, route).toBeTruthy();
+        expect(tip).toHaveTextContent(summary as string);
+      }
+    });
+  });
+});
+
+describe("Tip", () => {
+  it("renders its content and a tooltip with the tip text", () => {
+    render(
+      <Tip tip="Help text" className="extra">
+        <button type="button">Target</button>
+      </Tip>,
+    );
+    expect(screen.getByRole("button", { name: "Target" })).toBeInTheDocument();
+    expect(screen.getByRole("tooltip", { hidden: true })).toHaveTextContent(
+      "Help text",
+    );
+    expect(screen.getByRole("button").parentElement).toHaveClass("extra");
+  });
+});

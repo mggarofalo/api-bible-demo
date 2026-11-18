@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "parity": "node scripts/parity.mjs",
     "parity:live": "node scripts/parity.mjs --live",
-    "parity:update": "node scripts/parity.mjs --update"
+    "parity:update": "node scripts/parity.mjs --update",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "node .githooks/install.mjs"
   },
   "dependencies": {
     "@americanbible/api-bible-sdk": "^2.0.2",
@@ -23,12 +27,18 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.12",
+    "@types/node": "^22.20.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "jsdom": "^31.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.1.0"
   }
 }

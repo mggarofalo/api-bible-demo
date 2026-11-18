@@ -1,0 +1,21 @@
+#!/bin/sh
+#The checks that must pass before each commit. They are the same checks that CI runs
+#(.github/workflows/test.yml and the static job of parity.yml). They use no network.
+#
+#`npm install` sets up this hook (see .githooks/install.mjs).
+#To skip the hook for one commit: git commit --no-verify
+
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+echo "pre-commit: lint"
+npm run --silent lint
+
+echo "pre-commit: typecheck"
+npm run --silent typecheck
+
+echo "pre-commit: parity"
+npm run --silent parity
+
+echo "pre-commit: unit tests and coverage"
+npm run --silent test:coverage
