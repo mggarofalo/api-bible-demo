@@ -256,21 +256,52 @@ describe("EndpointNav", () => {
       expect(tip).toHaveTextContent(summary as string);
     });
 
-    it("has the reference summary in the tip of every link", () => {
+    //Each link with the route that its tip must show. "Sections" is in two rows.
+    const tipRoutes: [string, string, string][] = [
+      ["Bible", "/bibles/bible1", "/bibles/{bibleId}"],
+      ["Books", "/bibles/bible1/books", "/bibles/{bibleId}/books"],
+      ["Search", "/bibles/bible1/search", "/bibles/{bibleId}/search"],
+      ["Book", "/bibles/bible1/books/GEN", "/bibles/{bibleId}/books/{bookId}"],
+      ["Chapters", "/bibles/bible1/books/GEN/chapters", "/bibles/{bibleId}/books/{bookId}/chapters"],
+      ["Sections", "/bibles/bible1/books/GEN/sections", "/bibles/{bibleId}/books/{bookId}/sections"],
+      ["Chapter", "/bibles/bible1/chapters/GEN.1", "/bibles/{bibleId}/chapters/{chapterId}"],
+      ["Verses", "/bibles/bible1/chapters/GEN.1/verses", "/bibles/{bibleId}/chapters/{chapterId}/verses"],
+      ["Sections", "/bibles/bible1/chapters/GEN.1/sections", "/bibles/{bibleId}/chapters/{chapterId}/sections"],
+      ["Verse", "/bibles/bible1/verses/GEN.1.1", "/bibles/{bibleId}/verses/{verseId}"],
+      ["Passage", "/bibles/bible1/passages/GEN.1.1-GEN.1.3", "/bibles/{bibleId}/passages/{passageId}"],
+    ];
+
+    it("has a tip for every link of a passage page", () => {
       setRoute("/bibles/bible1/passages/GEN.1.1-GEN.1.3", {
         passageId: "GEN.1.1-GEN.1.3",
       });
       renderNav();
-
-      const tips = screen.getAllByRole("tooltip", { hidden: true });
-      expect(tips).toHaveLength(screen.getAllByRole("link").length);
-      for (const tip of tips) {
-        const route = tip.firstElementChild?.textContent ?? "";
-        const summary = getEndpoint(route)?.summary;
-        expect(summary, route).toBeTruthy();
-        expect(tip).toHaveTextContent(summary as string);
-      }
+      expect(screen.getAllByRole("tooltip", { hidden: true })).toHaveLength(tipRoutes.length);
+      expect(screen.getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(
+        tipRoutes.map(([, href]) => href),
+      );
     });
+
+    it.each(tipRoutes)(
+      "shows the route and the reference summary in the tip of %s (%s)",
+      (label, href, endpointRoute) => {
+        setRoute("/bibles/bible1/passages/GEN.1.1-GEN.1.3", {
+          passageId: "GEN.1.1-GEN.1.3",
+        });
+        renderNav();
+        const link = screen
+          .getAllByRole("link", { name: label })
+          .find((item) => item.getAttribute("href") === href)!;
+        expect(link).toBeDefined();
+        const tip = within(link.parentElement as HTMLElement).getByRole("tooltip", {
+          hidden: true,
+        });
+        const summary = getEndpoint(endpointRoute)?.summary;
+        expect(summary, endpointRoute).toBeTruthy();
+        expect(tip.firstElementChild?.textContent).toBe(endpointRoute);
+        expect(tip.textContent).toBe(`${endpointRoute}${summary}`);
+      },
+    );
   });
 });
 

@@ -100,6 +100,37 @@ describe("coverage manifest", () => {
     }
   });
 
+  it("names a get method for a path that ends with an ID and a list or search method for the others", () => {
+    for (const [path, entry] of covered) {
+      const [resource, method] = (entry.sdk ?? "").split(".");
+      const last = path.split("/").at(-1) ?? "";
+      if (/^\{\w+\}$/.test(last)) {
+        expect(method, path).toBe("get");
+        //The resource is the part of the path before the ID
+        expect(resource, path).toBe(path.split("/").at(-2));
+      } else {
+        expect(method, path).toMatch(/^(list|search)/);
+        expect(resource, path).toBe(last);
+      }
+    }
+  });
+
+  it("uses a number as the sample of a parameter that has a number as its default", () => {
+    const numeric = /^\d+$/;
+    let checked = 0;
+    for (const [path, entry] of covered) {
+      for (const [name, param] of Object.entries(entry.params ?? {})) {
+        if (param.deferred) continue;
+        if (numeric.test(endpoints[path].parameters[name].default ?? "")) {
+          checked += 1;
+          expect(param.sample, `${path} ${name}`).toMatch(numeric);
+        }
+      }
+    }
+    //Guards against a test that checks nothing
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it("names an SDK method that exists on the real client", () => {
     //Constructing the client makes no request
     const client = createBibleClient({ apiKey: "dummy" }) as unknown as Record<

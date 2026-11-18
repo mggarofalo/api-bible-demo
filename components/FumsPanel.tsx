@@ -67,10 +67,12 @@ const Step = ({
   <li className="flex gap-2">
     <span className="mt-0.5 shrink-0">
       {done ? (
-        <Check size={12} className="text-accent" />
+        <Check size={12} className="text-accent" aria-hidden="true" />
       ) : (
-        <Loader size={12} className="animate-spin text-zinc-400" />
+        <Loader size={12} className="animate-spin text-zinc-400" aria-hidden="true" />
       )}
+      {/* The icon is the only visible sign of the state. This text gives the state to a screen reader. */}
+      <span className="sr-only">{done ? "Done:" : "In progress:"}</span>
     </span>
     <span className="min-w-0">
       <span className="block font-bold">{title}</span>

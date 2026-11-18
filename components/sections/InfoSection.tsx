@@ -74,6 +74,8 @@ export const InfoSection = ({
       setCopied(false);
     }, 2000);
   };
+  //The name of the copy button tells its state, which the icon shows on the screen
+  const copyLabel = copied ? "Copied" : "Copy the URL";
 
   return (
     <div className="w-full px-4 py-3 border-line border-b-[1px]">
@@ -94,16 +96,21 @@ export const InfoSection = ({
         <div className="help-body pl-[48px] pr-4 pb-4 flex flex-col gap-1">
           {!!url && (
             <div className="w-full flex gap-2 overflow-hidden">
-              <div className="w-[16px] mt-[5px]" title="Copy the URL">
-                {copied ? (
-                  <Check size={16} />
-                ) : (
-                  <Copy
-                    size={16}
-                    className="cursor-pointer"
-                    onClick={() => onUrlCopy(url)}
-                  />
-                )}
+              <div className="w-[16px] mt-[5px]">
+                {/* A button, so that the keyboard and a screen reader can copy the URL */}
+                <button
+                  type="button"
+                  aria-label={copyLabel}
+                  title={copyLabel}
+                  onClick={copied ? undefined : () => onUrlCopy(url)}
+                  className={`flex ${copied ? "" : "cursor-pointer"}`}
+                >
+                  {copied ? (
+                    <Check size={16} aria-hidden="true" />
+                  ) : (
+                    <Copy size={16} aria-hidden="true" />
+                  )}
+                </button>
               </div>
               <code className="mb-2 font-bold text-zinc-600 break-all">
                 {url}

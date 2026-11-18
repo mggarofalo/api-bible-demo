@@ -114,10 +114,18 @@ describe("JSONSection", () => {
     ).toHaveAttribute("href", "#raw-json");
   });
 
+  //Under 90 s the age is in seconds, under 90 min in minutes, then in hours, rounded
   it.each([
+    [0, "0 s ago"],
     [30, "30 s ago"],
+    [89, "89 s ago"],
+    [90, "2 min ago"],
+    [150, "3 min ago"],
     [600, "10 min ago"],
+    [5399, "90 min ago"],
+    [5400, "2 h ago"],
     [7200, "2 h ago"],
+    [9000, "3 h ago"],
   ])("describes a cached response of %i seconds as %s", (seconds, text) => {
     render(<JSONSection json={{}} exchange={exchange(seconds)} />);
     expect(screen.getByText(`200 OK · from the cache (${text})`)).toBeInTheDocument();
@@ -133,6 +141,14 @@ describe("JSONSection", () => {
     reporter.mockClear();
     render(
       <JSONSection json={{ meta: { fumsToken: "tok" } }} exchange={exchange(10)} />,
+    );
+    expect(reporter).toHaveBeenCalledWith({ token: "tok", cached: true });
+  });
+
+  it("reports a response from the cache that is 0 seconds old as cached", () => {
+    reporter.mockClear();
+    render(
+      <JSONSection json={{ meta: { fumsToken: "tok" } }} exchange={exchange(0)} />,
     );
     expect(reporter).toHaveBeenCalledWith({ token: "tok", cached: true });
   });

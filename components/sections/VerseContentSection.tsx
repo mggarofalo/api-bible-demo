@@ -83,7 +83,9 @@ export const VerseContentSection = async ({
                   href={`${linkBase}/${previous.id}${query}`}
                   title=""
                 >
-                  <ArrowLeftCircle size={16} />
+                  <ArrowLeftCircle size={16} aria-hidden="true" />
+                  {/* The name of the link for a screen reader, the same as the text link */}
+                  <span className="sr-only">Previous</span>
                 </LinkButton>
                 <LinkButton
                   tab
@@ -101,7 +103,9 @@ export const VerseContentSection = async ({
                   href={`${linkBase}/${next.id}${query}`}
                   title=""
                 >
-                  <ArrowRightCircle size={16} />
+                  <ArrowRightCircle size={16} aria-hidden="true" />
+                  {/* The name of the link for a screen reader, the same as the text link */}
+                  <span className="sr-only">Next</span>
                 </LinkButton>
                 <LinkButton
                   tab

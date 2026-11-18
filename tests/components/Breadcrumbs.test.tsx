@@ -1,6 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import type { AnchorHTMLAttributes } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+
+//Stub of next/link that shows the prefetch prop, which the real link does not render
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch,
+    children,
+    ...rest
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => (
+    <a data-prefetch={String(prefetch)} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 describe("Breadcrumbs", () => {
   it("renders items with an href as links", () => {
@@ -21,6 +35,20 @@ describe("Breadcrumbs", () => {
       "href",
       "/bibles",
     );
+  });
+
+  it("never prefetches a link, so hovering does not call the API", () => {
+    render(
+      <Breadcrumbs
+        items={[
+          { title: "Home", href: "/" },
+          { title: "Bibles", href: "/bibles" },
+        ]}
+      />,
+    );
+    for (const link of screen.getAllByRole("link")) {
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    }
   });
 
   it("renders an item without an href as plain text", () => {

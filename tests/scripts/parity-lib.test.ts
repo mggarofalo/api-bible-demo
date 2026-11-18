@@ -13,6 +13,7 @@ import {
   pageRequest,
   parseOptions,
   plainText,
+  REFERENCE_URL,
   referenceDifferences,
   samplePath,
 } from "@/scripts/parity-lib.mjs";
@@ -57,15 +58,45 @@ describe("parseOptions", () => {
       live: false,
       update: false,
       baseUrl: "http://localhost:3000",
+      referenceUrl: "https://rest.api.bible/v1/swagger.json",
       waitSeconds: 0,
     });
+    expect(REFERENCE_URL).toBe("https://rest.api.bible/v1/swagger.json");
   });
 
   it("reads the flags and the values", () => {
     expect(
-      parseOptions(["--live", "--update", "--base-url=https://demo.test/", "--wait=60"]),
-    ).toEqual({ live: true, update: true, baseUrl: "https://demo.test", waitSeconds: 60 });
+      parseOptions([
+        "--live",
+        "--update",
+        "--base-url=https://demo.test/",
+        "--reference-url=http://127.0.0.1:8080/v1/swagger.json?a=b",
+        "--wait=60",
+      ]),
+    ).toEqual({
+      live: true,
+      update: true,
+      baseUrl: "https://demo.test",
+      referenceUrl: "http://127.0.0.1:8080/v1/swagger.json?a=b",
+      waitSeconds: 60,
+    });
   });
+
+  //The reference is a document, so its address keeps a slash at the end
+  it("keeps the reference URL as it is", () => {
+    expect(parseOptions(["--reference-url=https://ref.test/docs/"]).referenceUrl).toBe(
+      "https://ref.test/docs/",
+    );
+  });
+
+  it.each(["", "swagger.json", "ftp://ref.test/swagger.json", "file:///C:/swagger.json", "http://", "https:// x"])(
+    'refuses "--reference-url=%s", which is not an http or https address',
+    (url) => {
+      expect(() => parseOptions([`--reference-url=${url}`])).toThrow(
+        `--reference-url must be an http or https address. It was "${url}".`,
+      );
+    },
+  );
 
   it("reads --live without --update", () => {
     const options = parseOptions(["--live"]);
@@ -149,7 +180,11 @@ describe("normalizeReference", () => {
           ],
         },
         post: { parameters: [{ name: "body", in: "query" }] },
+        //`summary` is not a method. `put` and `delete` have the names of methods, but
+        //they are not operations (objects), so they are not methods either.
         summary: "A string at the path level is not a method",
+        put: "A string is not an operation",
+        delete: null,
       },
     },
   };
@@ -408,6 +443,12 @@ describe("pageFile and samplePath", () => {
     ).toBe("/bibles/de4e-01/books/{bookId}");
     expect(samplePath("/bibles/{bibleId}", {})).toBe("/bibles/{bibleId}");
   });
+
+  it("puts each sample ID in a path that has more than one ID", () => {
+    expect(
+      samplePath("/bibles/{bibleId}/books/{bookId}", { ids: { bibleId: "de4e-01", bookId: "GEN" } }),
+    ).toBe("/bibles/de4e-01/books/GEN");
+  });
 });
 
 describe("hasText", () => {
@@ -516,6 +557,14 @@ describe("checkParameters", () => {
     expect(results).toHaveLength(1);
     expect(results[0].ok).toBe(false);
     expect(results[0].message).toContain('"name"');
+  });
+
+  it("fails for a missing parameter when no parameter is unknown, and gives no pass", () => {
+    expect(
+      checkParameters(reference(), [["/bibles", { params: { language: { sample: "eng" } } }]]),
+    ).toEqual([
+      failure('/bibles: the reference has the parameter "include-full-details", but the manifest does not'),
+    ]);
   });
 
   it("fails when the reference has no help text", () => {
@@ -878,21 +927,55 @@ describe("checkPageHtml", () => {
     ).toEqual([ok("/bibles/{bibleId} → /v1/bibles/kjv")]);
   });
 
-  it("fails when the help text is different after the first 20 characters", () => {
+  //The page can cut a long text, so only the first 80 characters (without spaces) must agree
+  it("compares the first 80 characters of the help text, and no more", () => {
     const ref = reference();
-    ref.endpoints["/bibles/{bibleId}"].summary = `${"a".repeat(40)}one`;
-    const results = checkPageHtml(
-      ref,
-      "/bibles/{bibleId}",
-      { ids: { bibleId: "kjv" } },
-      html({
-        request: "https://rest.api.bible/v1/bibles/kjv",
-        body: `<h1>${"a".repeat(40)}two</h1><p>Gets one Bible.</p>`,
-      }),
-    );
-    expect(results).toHaveLength(1);
-    expect(results[0].ok).toBe(false);
-    expect(results[0].message).toContain("the summary");
+    const start = "a".repeat(79);
+    ref.endpoints["/bibles/{bibleId}"].summary = `${start}bone`;
+    const check = (summary: string) =>
+      checkPageHtml(
+        ref,
+        "/bibles/{bibleId}",
+        { ids: { bibleId: "kjv" } },
+        html({
+          request: "https://rest.api.bible/v1/bibles/kjv",
+          body: `<h1>${summary}</h1><p>Gets one Bible.</p>`,
+        }),
+      );
+    //A difference in the 80th character fails
+    expect(check(`${start}cone`)).toEqual([
+      failure(`/bibles/{bibleId}: the page does not show the summary of the reference ("${start}bone")`),
+    ]);
+    //A difference after the 80th character passes
+    expect(check(`${start}btwo`)).toEqual([ok("/bibles/{bibleId} → /v1/bibles/kjv")]);
+  });
+
+  it("fails for each parameter whose description the page does not show", () => {
+    //The page shows the summary, the description and the text of "language", but not of "include-full-details"
+    const body = "<h1>Get Bibles</h1><p>Gets a list of Bibles.</p><p>ISO 639-3 language code</p>";
+    expect(checkPageHtml(reference(), "/bibles", entry, html({ body }))).toEqual([
+      failure('/bibles: the page does not show the description of "include-full-details" from the reference'),
+    ]);
+  });
+
+  it("fails for a request path in another version of the API", () => {
+    for (const request of ["https://rest.api.bible/v2/bibles/kjv", "https://rest.api.bible/x/bibles/kjv"]) {
+      const pathname = new URL(request).pathname;
+      expect(
+        checkPageHtml(
+          reference(),
+          "/bibles/{bibleId}",
+          { ids: { bibleId: "kjv" } },
+          html({ request, body: "<h1>Get a Bible</h1><p>Gets one Bible.</p>" }),
+        ),
+      ).toEqual([failure(`/bibles/{bibleId}: the API path is ${pathname}, not /v1/bibles/kjv`)]);
+    }
+  });
+
+  it.each(["201", "204", "299"])("fails for the status %s, which is a success but not 200", (status) => {
+    expect(checkPageHtml(reference(), "/bibles", entry, html({ status }))).toEqual([
+      failure(`/bibles: the API gave the status ${status}`),
+    ]);
   });
 
   it("fails when the page shows no API request", () => {

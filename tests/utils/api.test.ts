@@ -273,6 +273,41 @@ describe("client", () => {
     await expect(sdkFetch(`${API}/bibles/bible-1/books`)).rejects.toBe(failure);
     expect(cache.store.size).toBe(0);
   });
+
+  it.each([
+    ["on", {}],
+    ["off", { API_CACHE_SECONDS: "0" }],
+  ])("calls fetch one time when it fails and the cache is %s", async (_state, env) => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.resetModules();
+    let sdkFetch: typeof fetch | undefined;
+    vi.doMock("@americanbible/api-bible-sdk", async (importOriginal) => {
+      const sdk = await importOriginal<typeof import("@americanbible/api-bible-sdk")>();
+      return {
+        ...sdk,
+        createBibleClient: (config: Parameters<typeof sdk.createBibleClient>[0]) => {
+          sdkFetch = config.fetch;
+          return sdk.createBibleClient(config);
+        },
+      };
+    });
+    try {
+      for (const [name, value] of Object.entries(env)) {
+        vi.stubEnv(name, value);
+      }
+      await import("@/utils/api");
+    } finally {
+      vi.doUnmock("@americanbible/api-bible-sdk");
+    }
+
+    await expect(sdkFetch!(`${API}/bibles/bible-1/books`)).rejects.toThrow("fetch failed");
+
+    //A second call would be a silent retry that the demo does not want
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("cache", () => {
@@ -367,9 +402,9 @@ describe("cache", () => {
     expect(cache.store.size).toBe(0);
   });
 
-  it("does not keep a redirect", async () => {
+  it.each([300, 301])("does not keep a response with status %i", async (status) => {
     const fetchMock = stubFetch(() =>
-      jsonResponse({ data: [] }, { status: 301, statusText: "Moved" }),
+      jsonResponse({ data: [] }, { status, statusText: "Moved" }),
     );
     const { client } = await loadApi();
 
@@ -412,7 +447,7 @@ describe("cache", () => {
       expect(warn).not.toHaveBeenCalled();
     });
 
-    it.each(["soon", "-5", "Infinity", "NaN"])(
+    it.each(["soon", "-5", "-1", "-0.5", "Infinity", "NaN"])(
       "uses the default and warns for %j",
       async (value) => {
         const { warn, revalidate } = await run(value);
@@ -549,6 +584,37 @@ describe("traced", () => {
     expect(exchange?.request.url).toBe(
       `${API}/bibles/bible-1/chapters/GEN.1/verses?use-org-id=true`,
     );
+  });
+
+  it("replaces a query parameter that is already in the URL with the extra value", async () => {
+    const fetchMock = stubFetch();
+    //The SDK has no use-org-id, so this calls its fetch with the parameter already set
+    const { traced, sdkFetch } = await loadApiWithSdkFetch();
+
+    await traced(
+      async () => {
+        await sdkFetch(`${API}/bibles?use-org-id=old`);
+        return {};
+      },
+      { "use-org-id": "new" },
+    );
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.getAll("use-org-id")).toEqual(["new"]);
+  });
+
+  it("keeps the raw JSON of the response as the body, not the result of the call", async () => {
+    const payload = { data: [verse], meta: { fumsId: "f-1" }, unknownKey: "kept" };
+    stubFetch(() => jsonResponse(payload));
+    const { traced, sdkFetch } = await loadApiWithSdkFetch();
+
+    const result = await traced(async () => {
+      await sdkFetch(`${API}/bibles`);
+      return { data: "different" };
+    });
+
+    //A body that stays a string would be replaced by the result of the call
+    expect(result.body).toEqual(payload);
   });
 
   it("removes an extra query parameter that has the default value", async () => {

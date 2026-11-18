@@ -9,7 +9,9 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/bibles", "/bibles/*/books", "/bibles/*/books/*/chapters"],
+      //A crawler uses the longest rule that matches a URL. The `$` stops these rules at the end
+      //of the path. Without it, they are longer than "/*?" and let a URL with query parameters in.
+      allow: ["/", "/bibles$", "/bibles/*/books$", "/bibles/*/books/*/chapters$"],
       disallow: [
         //A URL with query parameters is a different request to the API for each set of values
         "/*?",

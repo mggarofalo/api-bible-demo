@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Combobox, ComboboxOption } from "@/components/Combobox";
@@ -316,4 +316,73 @@ describe("Combobox", () => {
     await user.type(screen.getByRole("combobox"), "detail");
     expect(optionNames()).toEqual(["No detail"]);
   });
+  it("filters by the ID of an option when the ID is not in its text", async () => {
+    const { openList, user } = setup({
+      options: [...options, { id: "x-7731", label: "Plain Label", detail: "Plain detail" }],
+    });
+    await openList();
+    await user.type(screen.getByRole("combobox"), "7731");
+    expect(optionNames()).toEqual(["Plain Label"]);
+  });
+
+  it("scrolls the newly highlighted option into view after an arrow key", async () => {
+    const { openList, user } = setup({ value: "kjv" });
+    await openList();
+    scrollIntoView.mockClear();
+
+    await user.keyboard("{ArrowDown}");
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+    const target = scrollIntoView.mock.contexts[0] as HTMLElement;
+    expect(target).toBe(screen.getByRole("option", { name: /American Standard/ }));
+  });
+
+  it("stops listening for clicks out of the list when it closes", async () => {
+    const add = vi.spyOn(document, "addEventListener");
+    const remove = vi.spyOn(document, "removeEventListener");
+    const { openList, user } = setup();
+    await openList();
+    const added = add.mock.calls.filter(([type]) => type === "pointerdown");
+    expect(added).toHaveLength(1);
+    expect(remove).not.toHaveBeenCalledWith("pointerdown", added[0][1]);
+
+    await user.keyboard("{Escape}");
+
+    expect(remove).toHaveBeenCalledWith("pointerdown", added[0][1]);
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
+  it("stops listening for clicks out of the list when it unmounts open", async () => {
+    const add = vi.spyOn(document, "addEventListener");
+    const remove = vi.spyOn(document, "removeEventListener");
+    const { openList, unmount } = setup();
+    await openList();
+    const added = add.mock.calls.filter(([type]) => type === "pointerdown");
+    expect(added).toHaveLength(1);
+
+    unmount();
+
+    expect(remove).toHaveBeenCalledWith("pointerdown", added[0][1]);
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
+  it.each(["ArrowDown", "ArrowUp", "Enter", "Escape"])(
+    "cancels the default action of %s while the list is open",
+    async (key) => {
+      const { openList } = setup();
+      await openList();
+      const notCancelled = fireEvent.keyDown(screen.getByRole("combobox"), { key });
+      expect(notCancelled).toBe(false);
+    },
+  );
+
+  it("does not cancel the default action of other keys", async () => {
+    const { openList } = setup();
+    await openList();
+    expect(fireEvent.keyDown(screen.getByRole("combobox"), { key: "a" })).toBe(true);
+  });
+
 });

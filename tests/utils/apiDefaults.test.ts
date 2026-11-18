@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getApiDefaults, removeApiDefaults } from "@/utils/apiDefaults";
 
 describe("getApiDefaults", () => {
@@ -64,5 +64,45 @@ describe("removeApiDefaults", () => {
   it("does not add parameters that are absent", () => {
     const url = new URL("https://api.example.com/v1/bibles/abc-01/search");
     expect(removeApiDefaults(url).search).toBe("");
+  });
+});
+
+describe("a falsy default in the reference", () => {
+  afterEach(() => {
+    vi.doUnmock("@/parity/api-reference.json");
+    vi.resetModules();
+  });
+
+  //Loads the module with a reference that has an empty default and a default of 0
+  const load = async () => {
+    vi.resetModules();
+    vi.doMock("@/parity/api-reference.json", () => ({
+      default: {
+        endpoints: {
+          "/things": {
+            methods: ["get"],
+            parameters: {
+              empty: { default: "" },
+              zero: { default: 0 },
+              none: { description: "No default" },
+            },
+          },
+        },
+      },
+    }));
+    return import("@/utils/apiDefaults");
+  };
+
+  it("counts an empty string and 0 as defaults", async () => {
+    const { getApiDefaults } = await load();
+
+    expect(getApiDefaults("/things")).toEqual({ empty: "", zero: 0 });
+  });
+
+  it("removes a parameter that has an empty default", async () => {
+    const { removeApiDefaults } = await load();
+    const url = new URL("https://api.example.com/v1/things?empty=&none=");
+
+    expect(removeApiDefaults(url).search).toBe("?none=");
   });
 });

@@ -25,31 +25,44 @@ describe("MobileNavbar", () => {
     expect(document.body.style.overflowY).toBe("auto");
   });
 
-  it("opens on click and locks page scroll", async () => {
+  it("opens on click, names the open state and locks page scroll", async () => {
     const user = userEvent.setup();
-    const { container } = render(<Menu />);
-    await user.click(container.querySelector("svg")!);
+    render(<Menu />);
+    await user.click(screen.getByRole("button", { name: "Open the menu" }));
     expect(screen.getByText("menu items")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close the menu" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.queryByRole("button", { name: "Open the menu" })).toBeNull();
     expect(document.body.style.overflowY).toBe("hidden");
   });
 
-  it("closes on a second click and unlocks scroll", async () => {
+  it("closes on a second click, names the closed state and unlocks scroll", async () => {
     const user = userEvent.setup();
-    const { container } = render(<Menu />);
-    await user.click(container.querySelector("svg")!);
-    await user.click(container.querySelector("svg")!);
+    render(<Menu />);
+    await user.click(screen.getByRole("button", { name: "Open the menu" }));
+    await user.click(screen.getByRole("button", { name: "Close the menu" }));
     expect(screen.queryByText("menu items")).toBeNull();
+    expect(screen.getByRole("button", { name: "Open the menu" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     expect(document.body.style.overflowY).toBe("auto");
   });
 
   it("closes when the path changes", async () => {
     const user = userEvent.setup();
-    const { container, rerender } = render(<Menu />);
-    await user.click(container.querySelector("svg")!);
+    const { rerender } = render(<Menu />);
+    await user.click(screen.getByRole("button", { name: "Open the menu" }));
     expect(screen.getByText("menu items")).toBeInTheDocument();
     pathname = "/two";
     rerender(<Menu />);
     expect(screen.queryByText("menu items")).toBeNull();
+    expect(screen.getByRole("button", { name: "Open the menu" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     expect(document.body.style.overflowY).toBe("auto");
   });
 

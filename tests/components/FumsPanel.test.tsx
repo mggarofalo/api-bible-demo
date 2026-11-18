@@ -125,6 +125,46 @@ describe("FumsPanel", () => {
     delete window.fums;
   });
 
+  describe("a new report for the same token", () => {
+    //The store skips the same token in the same second, so each step is 2 s later
+    let now = 1_000_000;
+    beforeEach(() => {
+      now = 1_000_000;
+      vi.spyOn(Date, "now").mockImplementation(() => now);
+    });
+
+    it("reports the token again on a new page", () => {
+      navigation.pathname = "/bibles/a";
+      const { rerender } = render(<panel.FumsReporter token="tok" />);
+      now += 2000;
+      navigation.pathname = "/bibles/b";
+      rerender(<panel.FumsReporter token="tok" />);
+
+      expect(fums.fumsStore.getSnapshot().reports.map(({ path }) => path)).toEqual([
+        "/bibles/a",
+        "/bibles/b",
+      ]);
+    });
+
+    it("reports the token again when the same page shows a response from the cache", () => {
+      const { rerender } = render(<panel.FumsReporter token="tok" />);
+      now += 2000;
+      rerender(<panel.FumsReporter token="tok" cached />);
+
+      expect(fums.fumsStore.getSnapshot().reports.map(({ cached }) => cached)).toEqual([
+        false,
+        true,
+      ]);
+    });
+
+    it("does not report again when nothing changes", () => {
+      const { rerender } = render(<panel.FumsReporter token="tok" />);
+      now += 2000;
+      rerender(<panel.FumsReporter token="tok" />);
+      expect(fums.fumsStore.getSnapshot().reports).toHaveLength(1);
+    });
+  });
+
   it("reports nothing for a page with no token", () => {
     const { container } = render(<panel.FumsReporter />);
     expect(container).toBeEmptyDOMElement();
@@ -195,6 +235,28 @@ describe("FumsPanel", () => {
     expect(steps[2]).toHaveTextContent('(SHA-256 hash of "demo-user")');
     expect(steps[3]).toHaveTextContent("GET fums.api.bible/f3");
     expect(steps[3]).toHaveTextContent("Status 200 in 13 ms");
+  });
+
+  it("shows steps 3 and 4 as waiting until the request is recorded, then as done", () => {
+    render(
+      <>
+        <panel.FumsPanel />
+        <panel.FumsReporter token="tok" />
+      </>,
+    );
+    //Each step starts with its state as text for a screen reader
+    const waiting = () =>
+      within(activity())
+        .getAllByRole("listitem")
+        .map((step) => {
+          const text = step.textContent ?? "";
+          expect(text).toMatch(/^(Done:|In progress:)/);
+          return text.startsWith("In progress:");
+        });
+    expect(waiting()).toEqual([false, false, true, true]);
+
+    sendEntries([{ name: "https://fums.api.bible/f3?t=tok", duration: 4 }]);
+    expect(waiting()).toEqual([false, false, false, false]);
   });
 
   it("says sent when the browser does not show the status", () => {

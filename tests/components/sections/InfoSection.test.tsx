@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +17,16 @@ const found = {
   endpoint: { summary: "List Bibles", description: "Returns **all** Bibles." },
 };
 
+//A fake clipboard that records the copied text
+const mockClipboard = () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    value: { writeText },
+    configurable: true,
+  });
+  return writeText;
+};
+
 describe("InfoSection", () => {
   beforeEach(() => {
     pathname = "/bibles";
@@ -25,6 +35,7 @@ describe("InfoSection", () => {
 
   afterEach(() => {
     delete document.documentElement.dataset.help;
+    vi.useRealTimers();
   });
 
   it("shows the endpoint summary, URL and description from the reference", () => {
@@ -50,7 +61,7 @@ describe("InfoSection", () => {
     expect(screen.getByRole("heading", { name: "Welcome" })).toBeInTheDocument();
     expect(screen.getByText("custom info")).toBeInTheDocument();
     //No URL anywhere, so no URL block
-    expect(screen.queryByTitle("Copy the URL")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy the URL" })).toBeNull();
   });
 
   it("shows the given info instead of the description when there is no title", () => {
@@ -105,51 +116,45 @@ describe("InfoSection", () => {
     );
   });
 
-  it("copies the URL and shows a check for a moment", async () => {
+  it("copies the URL with the copy button, which then says Copied", async () => {
     const user = userEvent.setup();
-    const writeText = vi.fn().mockResolvedValue(undefined);
     //Set after userEvent.setup, which installs its own clipboard
-    Object.defineProperty(navigator, "clipboard", {
-      value: { writeText },
-      configurable: true,
-    });
+    const writeText = mockClipboard();
     render(<InfoSection />);
-    const icon = screen.getByTitle("Copy the URL").querySelector("svg")!;
-    await user.click(icon);
+    await user.click(screen.getByRole("button", { name: "Copy the URL" }));
     expect(writeText).toHaveBeenCalledWith("https://rest.api.bible/v1/bibles");
-    await waitFor(() =>
-      expect(screen.getByTitle("Copy the URL").querySelector("svg")).not.toHaveClass(
-        "cursor-pointer",
-      ),
-    );
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy the URL" })).toBeNull();
   });
 
-  it("returns the copy icon after two seconds", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      Object.defineProperty(navigator, "clipboard", {
-        value: { writeText: vi.fn().mockResolvedValue(undefined) },
-        configurable: true,
-      });
-      render(<InfoSection />);
-      await user.click(screen.getByTitle("Copy the URL").querySelector("svg")!);
-      await waitFor(() =>
-        expect(screen.getByTitle("Copy the URL").querySelector("svg")).not.toHaveClass(
-          "cursor-pointer",
-        ),
-      );
-      //The check is still there after one second
-      await act(() => vi.advanceTimersByTimeAsync(1000));
-      expect(screen.getByTitle("Copy the URL").querySelector("svg")).not.toHaveClass(
-        "cursor-pointer",
-      );
-      await act(() => vi.advanceTimersByTimeAsync(1100));
-      expect(screen.getByTitle("Copy the URL").querySelector("svg")).toHaveClass(
-        "cursor-pointer",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
+  it.each([
+    ["Enter", "{Enter}"],
+    ["Space", " "],
+  ])("copies the URL with the %s key", async (_name, key) => {
+    const user = userEvent.setup();
+    const writeText = mockClipboard();
+    render(<InfoSection />);
+    screen.getByRole("button", { name: "Copy the URL" }).focus();
+    await user.keyboard(key);
+    expect(writeText).toHaveBeenCalledWith("https://rest.api.bible/v1/bibles");
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+
+  it("says Copied for exactly two seconds", async () => {
+    vi.useFakeTimers();
+    mockClipboard();
+    render(<InfoSection />);
+    //The async act lets the copy finish before the timer starts
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Copy the URL" }));
+    });
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(1999));
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByRole("button", { name: "Copy the URL" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copied" })).toBeNull();
   });
 });

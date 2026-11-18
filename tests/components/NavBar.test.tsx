@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { AnchorHTMLAttributes } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
@@ -8,14 +10,38 @@ vi.mock("next/image", () => ({
     <img alt={alt} src={src} />
   ),
 }));
+//Stub of next/link that shows the prefetch prop, which the real link does not render
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch,
+    children,
+    ...rest
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => (
+    <a data-prefetch={String(prefetch)} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 import { Navbar } from "@/components/NavBar";
+
+const externalLinks = [
+  ["Source Code", "https://github.com/americanbible/api-bible-demo"],
+  ["Documentation", "https://docs.api.bible"],
+  ["API.Bible Website", "https://api.bible"],
+];
 
 describe("Navbar", () => {
   it("links the logo to the home page", () => {
     render(<Navbar />);
     const logo = screen.getByRole("img", { name: "API.Bible" });
     expect(logo.closest("a")).toHaveAttribute("href", "/");
+  });
+
+  it("never prefetches the logo link", () => {
+    render(<Navbar />);
+    const logo = screen.getByRole("img", { name: "API.Bible" });
+    expect(logo.closest("a")).toHaveAttribute("data-prefetch", "false");
   });
 
   it("shows the theme button", () => {
@@ -26,16 +52,26 @@ describe("Navbar", () => {
   it("shows the three external links", () => {
     render(<Navbar />);
     //The mobile menu is closed, so only the desktop links are in the page
-    expect(screen.getByRole("link", { name: "Source Code" })).toHaveAttribute(
-      "href",
-      "https://github.com/americanbible/api-bible-demo",
-    );
-    expect(screen.getByRole("link", { name: "Documentation" })).toHaveAttribute(
-      "href",
-      "https://docs.api.bible",
-    );
-    expect(
-      screen.getByRole("link", { name: "API.Bible Website" }),
-    ).toHaveAttribute("href", "https://api.bible");
+    for (const [name, href] of externalLinks) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+  });
+
+  it("shows the three external links again in the open mobile menu", async () => {
+    const user = userEvent.setup();
+    render(<Navbar />);
+    await user.click(screen.getByRole("button", { name: "Open the menu" }));
+
+    //Each link is now in the desktop bar and in the menu
+    for (const [name, href] of externalLinks) {
+      const links = screen.getAllByRole("link", { name });
+      expect(links).toHaveLength(2);
+      for (const link of links) {
+        expect(link).toHaveAttribute("href", href);
+        //The links open in the same tab, with the icon of an external link
+        expect(link).not.toHaveAttribute("target");
+        expect(link.querySelector("svg")).not.toBeNull();
+      }
+    }
   });
 });

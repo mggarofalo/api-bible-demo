@@ -459,6 +459,29 @@ describe("ReferencePanel", () => {
     ).toHaveLength(2);
   });
 
+  it("loads the verses of both chapters of a range again on Try again", async () => {
+    let fail = true;
+    navigation.params = { passageId: "GEN.1.1-GEN.3.2" };
+    stubFetch(async (chapterId) =>
+      fail
+        ? { ok: false, status: 500, json: async () => ({}) }
+        : { ok: true, status: 200, json: async () => VERSES[chapterId] },
+    );
+    const user = userEvent.setup();
+    render(<ReferencePanel />, { wrapper: Provider });
+    await user.click(await screen.findByRole("button", { name: "Try again" }));
+    const requests = () => fetchMock.mock.calls.map(([url]) => chapterOfUrl(String(url)));
+    expect(requests()).toEqual(["GEN.1", "GEN.3", "GEN.1", "GEN.3"]);
+
+    fail = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument(),
+    );
+    expect(requests().slice(4)).toEqual(["GEN.1", "GEN.3"]);
+  });
+
   it("shows no control to try again when the verses load", async () => {
     const user = userEvent.setup();
     render(<ReferencePanel />, { wrapper: Provider });
@@ -494,23 +517,27 @@ describe("ReferencePanel", () => {
     navigation.params = { passageId: "GEN.1.1-GEN.1.3" };
     render(<ReferencePanel />, { wrapper: Provider });
 
+    //Same chapter: the end chapter is "Same", and the end verse may still be "None"
     expect(select("Last chapter")).toHaveValue("");
+    expect(select("Last chapter")).toHaveDisplayValue("Same");
     await waitFor(() => expect(select("Last verse")).toHaveValue("GEN.1.3"));
+    expect(optionLabels("Last verse")).toEqual(["None", "2", "3"]);
     expect(openLink()).toHaveAttribute("href", "/bibles/b1/passages/GEN.1.1-GEN.1.3");
   });
 
-  it("starts a passage in one chapter with Same and None as the end choices", async () => {
-    navigation.params = { passageId: "GEN.1.1-GEN.1.3" };
+  it("disables the last verse until a start verse is selected", async () => {
+    const user = userEvent.setup();
     render(<ReferencePanel />, { wrapper: Provider });
-    await waitFor(() => expect(select("Last verse")).toHaveValue("GEN.1.3"));
+    await choose(user, "Book", "Genesis");
+    await choose(user, "Chapter", "1");
 
-    //Same chapter: the selected option is "Same", and the end verse may still be "None"
-    expect(
-      within(select("Last chapter")).getByRole("option", { name: "Same" }),
-    ).toHaveProperty("selected", true);
-    expect(select("Last chapter")).toHaveDisplayValue("Same");
-    expect(optionLabels("Last verse")).toEqual(["None", "2", "3"]);
-    expect(select("Last verse")).toHaveDisplayValue("3");
+    //The verses of the chapter are loaded, but no start verse is selected
+    await waitFor(() => expect(select("Verse")).toBeEnabled());
+    expect(select("Last verse")).toBeDisabled();
+
+    await choose(user, "Verse", "1");
+
+    expect(select("Last verse")).toBeEnabled();
   });
 
   it("enables the last chapter only after a verse is selected", async () => {

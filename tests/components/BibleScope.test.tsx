@@ -131,12 +131,42 @@ describe("BibleScopeSwitch", () => {
   });
 
   it("keeps the focus in a filter box by cancelling mouse down", () => {
-    render(<BibleScopeSwitch className="extra" />);
+    render(<BibleScopeSwitch />);
     const prevented = !button("All").dispatchEvent(
       new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
     );
     expect(prevented).toBe(true);
+  });
+
+  it("adds the class name to the group", () => {
+    render(<BibleScopeSwitch className="extra" />);
     expect(screen.getByRole("group")).toHaveClass("extra");
+  });
+
+  it("reads the scope cookie when it is not the first cookie", () => {
+    document.cookie = "other=1; path=/";
+    document.cookie = "bible-scope=all; path=/";
+    render(<BibleScopeSwitch />);
+    expect(button("All")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("does not read a cookie that only ends with the scope cookie name", () => {
+    document.cookie = "x-bible-scope=all; path=/";
+    render(<BibleScopeSwitch />);
+    expect(button("Selected")).toHaveAttribute("aria-pressed", "true");
+    expect(button("All")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("leaves the URL alone on a page below the Bibles page", async () => {
+    nav.pathname = "/bibles/x/books";
+    nav.search = "ids=a,b&page=2";
+    const user = userEvent.setup();
+    render(<BibleScopeSwitch />);
+
+    await user.click(button("All"));
+
+    expect(nav.router.replace).not.toHaveBeenCalled();
+    expect(nav.router.refresh).toHaveBeenCalledTimes(1);
   });
 });
 

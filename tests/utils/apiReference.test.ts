@@ -155,6 +155,20 @@ describe("resourceDefinition with a custom reference", () => {
     );
   });
 
+  it("splits paragraphs at a blank line that has spaces", async () => {
+    const { resourceDefinition } = await load(
+      "First paragraph.\n   \nThe Verse object represents a verse.\n\t\nLast one.",
+    );
+    expect(resourceDefinition("verses")).toBe("The Verse object represents a verse.");
+  });
+
+  it("takes 'object represents' over an earlier paragraph with 'represents'", async () => {
+    const { resourceDefinition } = await load(
+      "A tag represents a mark.\n\nThe Verse object represents a verse.",
+    );
+    expect(resourceDefinition("verses")).toBe("The Verse object represents a verse.");
+  });
+
   it("falls back to the first paragraph", async () => {
     const { resourceDefinition } = await load(
       "| table |\n\nPlain first one.\n\nSecond one.",

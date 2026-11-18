@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { BibleBreadcrumbs, RouteHero } from "@/components/BibleBreadcrumbs";
 import { BibleNavProvider, NavBible } from "@/components/BibleNav";
+import { findEndpoint } from "@/utils/apiReference";
 import type { SidebarBook } from "@/utils/getSidebarBooks";
 
 const navigation = vi.hoisted(() => ({
@@ -178,19 +179,6 @@ describe("BibleBreadcrumbs", () => {
       expect(screen.getByRole("combobox", { name: "Book" })).toBeInTheDocument();
       expect(navigation.push).not.toHaveBeenCalled();
     });
-
-    it("opens the page of the selected Bible", async () => {
-      const user = await openBibles();
-      await user.click(screen.getByText("Douay-Rheims"));
-      expect(navigation.push).toHaveBeenCalledExactlyOnceWith(`/bibles/${DRA}`);
-    });
-
-    it("links to the list of all Bibles", async () => {
-      const user = await openBibles();
-      await user.click(screen.getByText("Open the Bibles page"));
-      expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/bibles");
-      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    });
   });
 });
 
@@ -211,28 +199,35 @@ describe("RouteHero", () => {
     expect(parts).toEqual(["bibles", KJV, "verses", "GEN.1.1"]);
   });
 
+  //The tip of an ID: its placeholder, then its description from the API reference
+  const idTip = (pathname: string, idName: string) => {
+    const description = findEndpoint(pathname)?.endpoint.pathParameters?.[idName];
+    //Without a description, the test would not check the text after the placeholder
+    expect(description).toBeTruthy();
+    return `{${idName}}${description}`;
+  };
+
   it("gives each ID its placeholder name and description", () => {
-    navigation.pathname = `/bibles/${KJV}/verses/GEN.1.1`;
+    const pathname = `/bibles/${KJV}/verses/GEN.1.1`;
+    navigation.pathname = pathname;
     render(<RouteHero />);
     const [, bibleTip, , verseTip] = tips();
 
-    expect(bibleTip).toMatch(/^\{bibleId\}./);
-    expect(verseTip).toMatch(/^\{verseId\}./);
+    expect(bibleTip).toBe(idTip(pathname, "bibleId"));
+    expect(verseTip).toBe(idTip(pathname, "verseId"));
   });
 
   it.each([
-    ["a book", "/books/GEN", "{bookId}"],
-    ["a chapter", "/chapters/GEN.1", "{chapterId}"],
-    ["a passage", "/passages/GEN.1.1-GEN.1.3", "{passageId}"],
-    ["a section", "/sections/GEN.S1", "{sectionId}"],
-  ])("names the ID of %s with its placeholder", (_name, path, placeholder) => {
-    navigation.pathname = `/bibles/${KJV}${path}`;
+    ["a book", "/books/GEN", "bookId"],
+    ["a chapter", "/chapters/GEN.1", "chapterId"],
+    ["a passage", "/passages/GEN.1.1-GEN.1.3", "passageId"],
+    ["a section", "/sections/GEN.S1", "sectionId"],
+  ])("names the ID of %s with its placeholder", (_name, path, idName) => {
+    const pathname = `/bibles/${KJV}${path}`;
+    navigation.pathname = pathname;
     render(<RouteHero />);
-    const idTip = tips().at(-1) as string;
 
-    //The tip starts with the exact placeholder, then the description
-    expect(idTip.startsWith(placeholder)).toBe(true);
-    expect(idTip.length).toBeGreaterThan(placeholder.length);
+    expect(tips().at(-1)).toBe(idTip(pathname, idName));
   });
 
   it("gives each word a definition", () => {

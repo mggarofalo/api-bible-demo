@@ -32,6 +32,9 @@ const fail = (message) => ({ ok: false, message });
 
 /* ---------- Options ---------- */
 
+//The API reference that API.Bible publishes
+export const REFERENCE_URL = "https://rest.api.bible/v1/swagger.json";
+
 /**
  * Reads the options of the command line
  * @param {string[]} args
@@ -47,10 +50,16 @@ export const parseOptions = (args) => {
   if (wait.trim() === "" || !Number.isFinite(waitSeconds) || waitSeconds < 0) {
     throw new Error(`--wait must be a number of seconds, 0 or more. It was "${wait}".`);
   }
+  const referenceUrl = option("reference-url", REFERENCE_URL);
+  //`fetch` can get only an http or https address
+  if (!/^https?:\/\/[^/]/.test(referenceUrl) || !URL.canParse(referenceUrl)) {
+    throw new Error(`--reference-url must be an http or https address. It was "${referenceUrl}".`);
+  }
   return {
     live: args.includes("--live"),
     update: args.includes("--update"),
     baseUrl: option("base-url", "http://localhost:3000").replace(/\/$/, ""),
+    referenceUrl,
     waitSeconds,
   };
 };
@@ -84,7 +93,8 @@ export const normalizeReference = (document, source) => {
   for (const path of Object.keys(document.paths).sort()) {
     const item = document.paths[path];
     const methods = Object.keys(item)
-      .filter((key) => HTTP_METHODS.includes(key) && typeof item[key] === "object")
+      //`typeof null` is "object" too, and a null operation has no parameters to read
+      .filter((key) => HTTP_METHODS.includes(key) && item[key] !== null && typeof item[key] === "object")
       .sort();
 
     /** @type {Record<string, ReferenceParameter>} */

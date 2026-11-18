@@ -43,6 +43,21 @@ describe("VerseContentSection", () => {
     expect(screen.getByText("1 Verse")).toBeInTheDocument();
   });
 
+  it("shows a verse count of 0 as plural", async () => {
+    await show({ verseContent: make("x", { verseCount: 0 }) });
+    expect(screen.getByText("0 Verses")).toBeInTheDocument();
+  });
+
+  it("renders HTML content that starts with spaces and a line break as markup", async () => {
+    const container = await show({
+      verseContent: make('\n  <p class="p"><span>In the beginning</span></p>'),
+    });
+    expect(container.querySelector(".scripture-styles p span")).toHaveTextContent(
+      "In the beginning",
+    );
+    expect(container.querySelector("pre")).toBeNull();
+  });
+
   it("renders HTML content as markup", async () => {
     const container = await show({
       verseContent: make('<p class="p"><span>In the beginning</span></p>'),
@@ -74,7 +89,7 @@ describe("VerseContentSection", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("links to the previous and next items, keeping the query", async () => {
+  it("names each previous and next link, and keeps the query in its href", async () => {
     await show({
       linkBase: "/bibles/b1/chapters",
       query: "?content-type=text",
@@ -83,15 +98,19 @@ describe("VerseContentSection", () => {
         next: { id: "GEN.3" },
       }),
     });
-    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual([
-      "/bibles/b1/chapters/GEN.1?content-type=text",
-      "/bibles/b1/chapters/GEN.1?content-type=text",
-      "/bibles/b1/chapters/GEN.3?content-type=text",
-      "/bibles/b1/chapters/GEN.3?content-type=text",
-    ]);
-    expect(screen.getByRole("link", { name: "Previous" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Next" })).toBeInTheDocument();
+    //Each link is there two times: an icon for small screens, and text for other screens
+    const previous = screen.getAllByRole("link", { name: "Previous" });
+    const next = screen.getAllByRole("link", { name: "Next" });
+    expect(previous).toHaveLength(2);
+    expect(next).toHaveLength(2);
+    for (const link of previous) {
+      expect(link).toHaveAttribute("href", "/bibles/b1/chapters/GEN.1?content-type=text");
+    }
+    for (const link of next) {
+      expect(link).toHaveAttribute("href", "/bibles/b1/chapters/GEN.3?content-type=text");
+    }
+    //No link is without a name
+    expect(screen.getAllByRole("link")).toHaveLength(4);
   });
 
   it("leaves out a link when there is no previous or next id", async () => {
@@ -100,7 +119,11 @@ describe("VerseContentSection", () => {
       verseContent: make("x", { previous: {}, next: { id: "n" } }),
     });
     expect(screen.queryByRole("link", { name: "Previous" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute("href", "/b/n");
+    const next = screen.getAllByRole("link", { name: "Next" });
+    expect(next).toHaveLength(2);
+    for (const link of next) {
+      expect(link).toHaveAttribute("href", "/b/n");
+    }
   });
 
   it("does not load the list of Bibles without parallels", async () => {

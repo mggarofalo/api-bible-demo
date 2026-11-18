@@ -138,6 +138,61 @@ describe("BibleNavProvider", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the verses of the other chapters when a chapter loads", async () => {
+    const verses = (chapter: string) => [{ id: `${chapter}.1`, number: "1" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        jsonResponse(verses(url.includes("GEN.1") ? "GEN.1" : "GEN.2")),
+      ),
+    );
+
+    const { result } = renderHook(() => useBibleNav(), { wrapper: Provider });
+    result.current?.loadVerses("GEN.1");
+    await waitFor(() => expect(result.current?.verses["GEN.1"]).toEqual(verses("GEN.1")));
+    result.current?.loadVerses("GEN.2");
+
+    await waitFor(() => expect(result.current?.verses["GEN.2"]).toEqual(verses("GEN.2")));
+    expect(result.current?.verses["GEN.1"]).toEqual(verses("GEN.1"));
+  });
+
+  it("keeps the verses of the other chapters when a chapter fails", async () => {
+    const verses = [{ id: "GEN.1.1", number: "1" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("GEN.1") ? jsonResponse(verses) : jsonResponse({}, 500),
+      ),
+    );
+
+    const { result } = renderHook(() => useBibleNav(), { wrapper: Provider });
+    result.current?.loadVerses("GEN.1");
+    await waitFor(() => expect(result.current?.verses["GEN.1"]).toEqual(verses));
+    result.current?.loadVerses("GEN.2");
+
+    await waitFor(() => expect(result.current?.verses["GEN.2"]).toBe("error"));
+    expect(result.current?.verses["GEN.1"]).toEqual(verses);
+  });
+
+  it("requests the verses from the Bible that the provider has now", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+    let bibleId = KJV;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <Provider bibleId={bibleId}>{children}</Provider>
+    );
+
+    const { result, rerender } = renderHook(() => useBibleNav(), { wrapper });
+    bibleId = DRA;
+    rerender();
+    result.current?.loadVerses("GEN.1");
+
+    await waitFor(() => expect(result.current?.verses["GEN.1"]).toEqual([]));
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      `/api/bibles/${DRA}/chapters/GEN.1/verses`,
+    );
+  });
+
   it("marks a chapter as an error when the request fails", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
 
@@ -245,6 +300,18 @@ describe("BiblePicker", () => {
     expect(options).toHaveLength(2);
     expect(options[1]).toHaveTextContent("Douay-Rheims");
     expect(options[1]).toHaveTextContent("DRA · English");
+  });
+
+  it("marks the current Bible as the selected and highlighted option", async () => {
+    const user = userEvent.setup();
+    render(<BiblePicker />, { wrapper: ({ children }) => <Provider bibleId={DRA}>{children}</Provider> });
+    await user.click(screen.getByRole("button", { name: "Bible: DRA" }));
+
+    const current = screen.getByRole("option", { selected: true });
+    expect(current).toHaveTextContent("Douay-Rheims");
+    expect(screen.getByRole("option", { selected: false })).toHaveTextContent("King James Version");
+    //The list opens with the current Bible highlighted, not the first one
+    expect(screen.getByRole("combobox")).toHaveAttribute("aria-activedescendant", current.id);
   });
 
   it("opens the page of the selected Bible", async () => {

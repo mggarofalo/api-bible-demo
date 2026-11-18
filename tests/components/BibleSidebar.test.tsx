@@ -219,6 +219,25 @@ describe("BibleSidebar", () => {
       );
     });
 
+    it("shows whether the verses of a chapter are open", async () => {
+      setRoute("/bibles/bible1/books/GEN", { bookId: "GEN" });
+      mockFetch();
+      const user = userEvent.setup();
+      renderSidebar();
+      await openByHover(user);
+
+      const closed = screen.getByRole("button", {
+        name: "Show the verses of Genesis, Chapter 2",
+      });
+      expect(closed).toHaveAttribute("aria-expanded", "false");
+
+      await user.click(closed);
+
+      expect(
+        screen.getByRole("button", { name: "Hide the verses of Genesis, Chapter 2" }),
+      ).toHaveAttribute("aria-expanded", "true");
+    });
+
     it("collapses an open book", async () => {
       setRoute("/bibles/bible1/books/GEN", { bookId: "GEN" });
       mockFetch();
@@ -252,6 +271,70 @@ describe("BibleSidebar", () => {
       expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
         block: "nearest",
       });
+    });
+  });
+
+  describe("scroll into view", () => {
+    const scrolled = () => vi.mocked(Element.prototype.scrollIntoView);
+    //The row of a book or chapter is the parent of its link
+    const rowOf = (name: string) => screen.getByRole("link", { name }).parentElement;
+
+    it("scrolls the row of the book on a book page", async () => {
+      setRoute("/bibles/bible1/books/EXO", { bookId: "EXO" });
+      mockFetch();
+      const user = userEvent.setup();
+      renderSidebar();
+      await openByHover(user);
+
+      expect(scrolled().mock.contexts).toEqual([rowOf("Exodus")]);
+    });
+
+    it("scrolls the row of the chapter on a chapter page", async () => {
+      setRoute("/bibles/bible1/chapters/GEN.2", { chapterId: "GEN.2" });
+      mockFetch();
+      const user = userEvent.setup();
+      renderSidebar();
+      await openByHover(user);
+
+      expect(scrolled().mock.contexts).toEqual([rowOf("Chapter 2")]);
+    });
+
+    it("does not scroll to the book when the chapter row is hidden", async () => {
+      setRoute("/bibles/bible1/chapters/GEN.2", { chapterId: "GEN.2" });
+      mockFetch();
+      const user = userEvent.setup();
+      renderSidebar();
+      await user.click(toggle());
+      await screen.findByRole("complementary");
+      await user.click(
+        screen.getByRole("button", { name: "Hide the chapters of Genesis" }),
+      );
+      //Close the sidebar and open it again, with the chapter row hidden
+      await user.click(toggle());
+      expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+      scrolled().mockClear();
+      await user.click(toggle());
+      await screen.findByRole("complementary");
+
+      expect(scrolled()).not.toHaveBeenCalled();
+    });
+
+    it("scrolls to the new row when the page changes while the sidebar is open", async () => {
+      setRoute("/bibles/bible1/chapters/GEN.1", { chapterId: "GEN.1" });
+      mockFetch();
+      const user = userEvent.setup();
+      const { rerender } = renderSidebar();
+      await openByHover(user);
+      expect(scrolled().mock.contexts).toEqual([rowOf("Chapter 1")]);
+
+      setRoute("/bibles/bible1/chapters/GEN.2", { chapterId: "GEN.2" });
+      rerender(
+        <BibleNavProvider bibleId="bible1" bibles={[]} books={books}>
+          <BibleSidebar />
+        </BibleNavProvider>,
+      );
+
+      expect(scrolled().mock.contexts).toEqual([rowOf("Chapter 1"), rowOf("Chapter 2")]);
     });
   });
 
@@ -470,7 +553,7 @@ describe("BibleSidebar", () => {
       expect(currentLinks(sidebar)).toEqual([]);
     });
 
-    it("decodes the encoded IDs of the URL", async () => {
+    it("loads the verses of the chapter that an encoded URL ID names", async () => {
       setRoute("/bibles/bible1/chapters/GEN.1", { chapterId: "GEN%2E1" });
       const fetchMock = mockFetch();
       const user = userEvent.setup();

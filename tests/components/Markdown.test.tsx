@@ -79,6 +79,26 @@ describe("Markdown", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  it("keeps a block as a paragraph when only one of its three lines starts with a pipe", () => {
+    render(<Markdown text={"First line\n| a | b |\nlast line"} />);
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getByText("First line | a | b | last line").tagName).toBe("P");
+  });
+
+  it("renders a table whose lines have spaces before the pipe", () => {
+    render(<Markdown text={"  | Name | Value |\n  | --- | --- |\n  | a | one |"} />);
+    const table = screen.getByRole("table");
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((c) => c.textContent),
+    ).toEqual(["Name", "Value"]);
+    expect(within(table).getAllByRole("cell").map((c) => c.textContent)).toEqual([
+      "a",
+      "one",
+    ]);
+  });
+
   it("does not inject raw HTML or scripts", () => {
     const { container } = render(
       <Markdown

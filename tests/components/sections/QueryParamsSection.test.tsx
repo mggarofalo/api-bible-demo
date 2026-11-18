@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Suspense, use, useEffect, useState, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BibleNavProvider } from "@/components/BibleNav";
 import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
@@ -40,6 +41,8 @@ const renderSection = (
   pathname: string,
   search: string,
   definitions: Definitions,
+  //Other content of the page, next to the section
+  page?: ReactNode,
 ) => {
   nav.pathname = pathname;
   nav.search = search;
@@ -48,6 +51,7 @@ const renderSection = (
   return render(
     <BibleNavProvider bibleId="bible1" bibles={bibles} books={[]}>
       <QueryParamsSection params={params} />
+      {page}
     </BibleNavProvider>,
   );
 };
@@ -427,6 +431,32 @@ describe("QueryParamsSection", () => {
       });
     });
 
+    it("removes every parameter of the page and keeps a key that is not a parameter", async () => {
+      const user = userEvent.setup();
+      const definitions = contentParams({}, [textParam("offset", "0", "0")]);
+      //A value that is not the default for each parameter
+      const search = [
+        "content-type=json",
+        "include-notes=true",
+        "include-titles=false",
+        "include-chapter-numbers=true",
+        "include-verse-numbers=false",
+        "include-verse-spans=true",
+        "offset=20",
+        "parallels=bible2",
+        "other=1",
+      ].join("&");
+      renderSection(CHAPTER, search, definitions);
+      //The list above has each parameter of the fixture
+      expect(readParams(definitions, Object.fromEntries(new URLSearchParams(search))).every(
+        (param) => param.value !== param.defaultValue,
+      )).toBe(true);
+
+      await user.click(screen.getByRole("button", { name: "Defaults" }));
+
+      expect(lastUrl()).toBe(`${CHAPTER}?other=1`);
+    });
+
     it("goes to the bare path when nothing else is in the URL", async () => {
       const user = userEvent.setup();
       renderSection(CHAPTER, "content-type=json", contentParams());
@@ -434,6 +464,42 @@ describe("QueryParamsSection", () => {
       await user.click(screen.getByRole("button", { name: "Defaults" }));
 
       expect(lastUrl()).toBe(CHAPTER);
+    });
+  });
+
+  describe("loading", () => {
+    //A part of the page that waits forever when the URL changes, as a page that the
+    //server has not sent yet. The router change is in a transition, so it stays pending.
+    const never = new Promise<never>(() => {});
+    let startLoad = () => {};
+    const SlowPage = () => {
+      const [loading, setLoading] = useState(false);
+      useEffect(() => {
+        startLoad = () => setLoading(true);
+      }, []);
+      if (loading) use(never);
+      return null;
+    };
+
+    it("shows a spinner while the new page loads", async () => {
+      const user = userEvent.setup();
+      nav.router.replace.mockImplementationOnce(() => startLoad());
+      renderSection(
+        CHAPTER,
+        "",
+        contentParams(),
+        <Suspense fallback={null}>
+          <SlowPage />
+        </Suspense>,
+      );
+      //The spinner has no name. It is the only icon in the heading.
+      const heading = screen.getByRole("heading", { name: /Query Parameters/ });
+      expect(heading.querySelector("svg")).toBeNull();
+
+      await user.click(screen.getByRole("checkbox", { name: /^include-notes/ }));
+
+      expect(nav.router.replace).toHaveBeenCalled();
+      expect(heading.querySelector("svg")).toHaveClass("animate-spin");
     });
   });
 

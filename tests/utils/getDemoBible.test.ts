@@ -86,6 +86,14 @@ describe("getDemoBible", () => {
     expect(mocks.notFound).toHaveBeenCalledTimes(1);
   });
 
+  it("shows the not found page for the start of a real ID", async () => {
+    mocks.list.mockResolvedValue({ data: [kjv, web] });
+    const { getDemoBible } = await load();
+
+    //The ID must match in full, not only at the start
+    await expect(getDemoBible("de4e12af7f28f599")).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
   it("shows the not found page when the API has no Bibles", async () => {
     mocks.list.mockResolvedValue({ data: [] });
     const { getDemoBible } = await load();

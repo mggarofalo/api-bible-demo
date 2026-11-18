@@ -44,9 +44,13 @@
  *   --live               Also run the live checks.
  *   --update             Write the snapshot again from the published reference, then stop.
  *   --base-url=<url>     Address of the running demo. Default: http://localhost:3000
+ *   --reference-url=<url>
+ *                        Address of the published reference, for --live and --update.
+ *                        Default: https://rest.api.bible/v1/swagger.json
  *   --wait=<seconds>     Wait up to this time for the demo to start. Default: 0
  *
- * The exit code is 1 if a check fails, and 0 if all checks pass.
+ * The exit code is 1 if a check fails, and 0 if all checks pass. With --update, it is 1
+ * if the script cannot get the published reference, and the snapshot does not change.
  *
  * This file does the file and network I/O and prints the results. The checks themselves
  * are in `scripts/parity-lib.mjs`, so that the tests can call them.
@@ -67,9 +71,12 @@ import {
   referenceDifferences,
 } from "./parity-lib.mjs";
 
-const REFERENCE_URL = "https://rest.api.bible/v1/swagger.json";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = join(root, "parity", "api-reference.json");
+
+//`fetch` gives only "fetch failed" for a network error. The cause has the useful text.
+const reason = (error) =>
+  error.cause ? `${error.message}: ${error.cause.code ?? error.cause.message}` : error.message;
 
 const options = (() => {
   try {
@@ -79,7 +86,7 @@ const options = (() => {
     process.exit(2);
   }
 })();
-const { live, update, baseUrl, waitSeconds } = options;
+const { live, update, baseUrl, referenceUrl, waitSeconds } = options;
 
 let failures = 0;
 let passes = 0;
@@ -105,23 +112,31 @@ const report = (results) => {
  * the snapshot (utils/apiReference.ts), so it shows the words of the reference.
  */
 const fetchReference = async () => {
-  const response = await fetch(REFERENCE_URL, {
+  const response = await fetch(referenceUrl, {
     signal: AbortSignal.timeout(30000),
   });
   if (!response.ok) {
-    throw new Error(`${REFERENCE_URL} gave the status ${response.status}`);
+    throw new Error(`${referenceUrl} gave the status ${response.status}`);
   }
-  return normalizeReference(await response.json(), REFERENCE_URL);
+  return normalizeReference(await response.json(), referenceUrl);
 };
 
 /** Writes the snapshot again from the published reference */
 const runUpdate = async () => {
-  const published = await fetchReference();
+  let published;
+  try {
+    published = await fetchReference();
+  } catch (error) {
+    //The snapshot stays as it was
+    console.error(`cannot get the published reference (${reason(error)})`);
+    return false;
+  }
   writeFileSync(snapshotPath, JSON.stringify(published, null, 2) + "\n");
   console.log(
-    `Wrote parity/api-reference.json from ${REFERENCE_URL} (version ${published.version}, ${Object.keys(published.endpoints).length} endpoints).`,
+    `Wrote parity/api-reference.json from ${referenceUrl} (version ${published.version}, ${Object.keys(published.endpoints).length} endpoints).`,
   );
   console.log('Run "npm run parity" to see what the demo must add.');
+  return true;
 };
 
 /* ---------- The demo ---------- */
@@ -162,7 +177,7 @@ const checkPage = async (reference, path, entry) => {
       return fail(`${path}: ${pagePath} gave the status ${response.status}`);
     }
   } catch (error) {
-    return fail(`${path}: cannot load ${pagePath} (${error.message})`);
+    return fail(`${path}: cannot load ${pagePath} (${reason(error)})`);
   }
   report(checkPageHtml(reference, path, entry, html));
 };
@@ -194,7 +209,7 @@ const runChecks = async () => {
   report(checkSource(reference, covered, readPage, shared));
 
   if (live) {
-    section(`4. Reference: the published reference is the same as the snapshot (${REFERENCE_URL})`);
+    section(`4. Reference: the published reference is the same as the snapshot (${referenceUrl})`);
     try {
       const differences = referenceDifferences(reference, await fetchReference());
       if (differences.length) {
@@ -204,7 +219,7 @@ const runChecks = async () => {
         pass(`${Object.keys(reference.endpoints).length} endpoints, no differences`);
       }
     } catch (error) {
-      fail(`cannot get the published reference (${error.message})`);
+      fail(`cannot get the published reference (${reason(error)})`);
     }
 
     section(`5. Pages: each covered page sends the API request that the manifest describes (${baseUrl})`);
@@ -226,7 +241,7 @@ const runChecks = async () => {
 //Set the exit code and let Node stop by itself. `process.exit()` immediately after a
 //network request can stop Node on Windows with an error.
 if (update) {
-  await runUpdate();
+  process.exitCode = (await runUpdate()) ? 0 : 1;
 } else {
   process.exitCode = (await runChecks()) ? 0 : 1;
 }

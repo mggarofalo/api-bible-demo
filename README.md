@@ -90,6 +90,8 @@ npm run parity:live     # also checks the published reference and each page of a
 npm run parity:update   # gets the published reference and writes the snapshot again
 ```
 
+To get the reference from another address, such as a copy on a test server, add `--reference-url`: `npm run parity:live -- --reference-url=http://localhost:8080/swagger.json`. The header of [scripts/parity.mjs](./scripts/parity.mjs) lists all of the options.
+
 | Check         | What it compares                                                                   | A failure means                                                     |
 | ------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | 1. Endpoints  | The endpoints of the snapshot and the entries of the manifest                      | The manifest does not account for an endpoint                       |
@@ -146,3 +148,4 @@ The lists of Bibles show a short list by default: the Bibles in [demoBibles.ts](
 This application is still a work in progress. In the near future we hope to provide the following features:
 
 1. Audio Bible support
+2. Tests in a browser with [Playwright](https://playwright.dev). The unit tests use a simulated browser, which has no layout, no navigation and no server components. Tests in a real browser, against a production build, will cover the pages, the layouts and the paths that are most important to a user.

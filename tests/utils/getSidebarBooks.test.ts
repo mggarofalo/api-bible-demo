@@ -57,6 +57,17 @@ describe("getSidebarBooks", () => {
     ]);
   });
 
+  it("uses the number of a chapter, not the end of its ID", async () => {
+    list.mockResolvedValue({
+      data: [{ ...genesis, id: "PSA", name: "Psalms", chapters: [chapter("PSA.1", "One")] }],
+    });
+    const { getSidebarBooks } = await load();
+
+    const [book] = await getSidebarBooks("bible-1");
+
+    expect(book.chapters).toEqual([{ id: "PSA.1", number: "One" }]);
+  });
+
   it("keeps the order of the books and chapters from the API", async () => {
     list.mockResolvedValue({
       data: [
