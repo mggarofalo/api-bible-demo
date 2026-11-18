@@ -165,4 +165,20 @@ describe("useBibleScope", () => {
     expect(screen.getByText("scope:all")).toBeInTheDocument();
     expect(button("All")).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("removes its window listener when the component unmounts", () => {
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const { unmount } = render(<Probe />);
+    const added = add.mock.calls.filter(([type]) => type === "bible-scope-change");
+    expect(added).toHaveLength(1);
+    const handler = added[0][1];
+    expect(remove).not.toHaveBeenCalledWith("bible-scope-change", handler);
+
+    unmount();
+
+    expect(remove).toHaveBeenCalledWith("bible-scope-change", handler);
+    add.mockRestore();
+    remove.mockRestore();
+  });
 });

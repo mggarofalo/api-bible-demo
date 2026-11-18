@@ -233,9 +233,37 @@ describe("FumsPanel", () => {
       { name: "https://rest.api.bible/v1/bibles?t=tok", duration: 4 },
       { name: "https://api.bible/fums?t=tok", duration: 4 },
       { name: "https://example.com/?next=https://fums.api.bible/f3", duration: 4 },
+      { name: "https://fums.api.bible.evil.test/f3?t=tok", duration: 4 },
+      { name: "https://fums.api.bible@evil.test/f3?t=tok", duration: 4 },
+      { name: "https://fums.api.bible:8443/f3?t=tok", duration: 4 },
+      { name: "http://fums.api.bible/f3?t=tok", duration: 4 },
     ]);
     expect(fums.fumsStore.getSnapshot().reports[0].request).toBeUndefined();
     expect(screen.getByText("Wait for the request.")).toBeInTheDocument();
+  });
+
+  it("ignores a request with a URL that is not valid", () => {
+    render(
+      <>
+        <panel.FumsPanel />
+        <panel.FumsReporter token="tok" />
+      </>,
+    );
+    sendEntries([
+      { name: "https://fums.api.bible:bad/f3?t=tok", duration: 4 },
+      { name: "https://fums.api.bible/f3?t=tok", duration: 4, responseStatus: 200 },
+    ]);
+    expect(fums.fumsStore.getSnapshot().reports[0].request?.status).toBe(200);
+  });
+
+  it("counts all reports of the session, also the ones the store dropped", () => {
+    act(() => {
+      for (let i = 1; i <= fums.MAX_FUMS_REPORTS + 5; i++) {
+        fums.reportFumsToken(`token-${i}`, "/a", false);
+      }
+    });
+    render(<panel.FumsPanel />);
+    expect(toggleButton()).toHaveTextContent(`${fums.MAX_FUMS_REPORTS + 5} reports`);
   });
 
   it("stops reading requests when it unmounts", () => {

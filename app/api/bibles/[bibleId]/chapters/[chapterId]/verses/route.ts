@@ -26,7 +26,8 @@ export async function GET(_request: Request, { params }: RouteProps) {
     request = client.verses.list(bibleId, chapterId).then(({ data }) =>
       data.map((verse) => ({
         id: verse.id,
-        number: verse.id.split(".").pop() ?? verse.id,
+        //The part after the last dot, or the full ID when it has no dot
+        number: verse.id.slice(verse.id.lastIndexOf(".") + 1),
       })),
     );
     if (requests.size >= MAX_CACHED_CHAPTERS) {

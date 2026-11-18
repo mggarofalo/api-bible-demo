@@ -620,6 +620,28 @@ describe("ReferencePicker", () => {
     expect(button).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("removes its document listeners when the form closes", async () => {
+    const add = vi.spyOn(document, "addEventListener");
+    const remove = vi.spyOn(document, "removeEventListener");
+    const { button, user } = await openPicker();
+    //The listeners that the open form added to the document
+    const added = add.mock.calls.filter(
+      ([type]) => type === "pointerdown" || type === "keydown",
+    );
+    expect(added.map(([type]) => type)).toEqual(
+      expect.arrayContaining(["pointerdown", "keydown"]),
+    );
+
+    await user.keyboard("{Escape}");
+
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    for (const [type, handler] of added) {
+      expect(remove).toHaveBeenCalledWith(type, handler);
+    }
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
   it("closes the form on a new page", async () => {
     const { button, rerender } = await openPicker();
     navigation.pathname = "/bibles/b1/books/GEN";

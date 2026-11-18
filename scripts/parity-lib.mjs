@@ -57,6 +57,10 @@ export const parseOptions = (args) => {
 
 /* ---------- The API reference ---------- */
 
+//The keys of an OpenAPI path item that are operations. The other keys, such as
+//`parameters`, `servers` and `x-` extensions, are not methods.
+const HTTP_METHODS = ["get", "put", "post", "delete", "options", "head", "patch", "trace"];
+
 /**
  * Keeps only the data of an OpenAPI document that the parity check uses: each endpoint,
  * its HTTP methods, and its query parameters. For a parameter with fixed values, it keeps
@@ -80,7 +84,7 @@ export const normalizeReference = (document, source) => {
   for (const path of Object.keys(document.paths).sort()) {
     const item = document.paths[path];
     const methods = Object.keys(item)
-      .filter((key) => typeof item[key] === "object" && key !== "parameters")
+      .filter((key) => HTTP_METHODS.includes(key) && typeof item[key] === "object")
       .sort();
 
     /** @type {Record<string, ReferenceParameter>} */
@@ -161,15 +165,24 @@ export const referenceDifferences = (snapshot, published) => {
     for (const name of [...names].sort()) {
       const was = before.parameters[name];
       const is = after.parameters[name];
-      if (!was) differences.push(`${path} has the new parameter "${name}"`);
-      else if (!is) differences.push(`${path} no longer has the parameter "${name}"`);
-      else if (was.description !== is.description) {
+      if (!was) {
+        differences.push(`${path} has the new parameter "${name}"`);
+        continue;
+      }
+      if (!is) {
+        differences.push(`${path} no longer has the parameter "${name}"`);
+        continue;
+      }
+      //A parameter can change in more than one way. Each change is reported.
+      if (was.description !== is.description) {
         differences.push(`${path}: the description of "${name}" changed`);
-      } else if (was.default !== is.default) {
+      }
+      if (was.default !== is.default) {
         differences.push(
           `${path}: the default of "${name}" changed to ${is.default === undefined ? "no default" : `"${is.default}"`}`,
         );
-      } else if ((was.values ?? []).join() !== (is.values ?? []).join()) {
+      }
+      if ((was.values ?? []).join() !== (is.values ?? []).join()) {
         differences.push(
           `${path}: the values of "${name}" changed to ${(is.values ?? []).join(", ") || "any value"}`,
         );
@@ -276,8 +289,16 @@ export const checkParameters = (reference, covered) => {
     for (const problem of noText) {
       results.push(fail(`${path}: ${problem}, so the demo has no help text for it`));
     }
-    if (!missing.length && !unknown.length && !noText.length) {
-      const params = entry.params ?? {};
+    //The live check sets each parameter to its sample, so a parameter that is not
+    //deferred must have one
+    const params = entry.params ?? {};
+    const noSample = manifestParams.filter(
+      (name) => !params[name].deferred && params[name].sample === undefined,
+    );
+    for (const name of noSample) {
+      results.push(fail(`${path}: the parameter "${name}" has no sample`));
+    }
+    if (!missing.length && !unknown.length && !noText.length && !noSample.length) {
       const deferred = manifestParams.filter((name) => params[name].deferred);
       results.push(
         pass(
@@ -376,10 +397,13 @@ export const pageRequest = (path, entry) => {
     .filter(([, param]) => !param.deferred)
     .map(([name, param]) => ({ name, ...param }));
   const route = samplePath(path, entry);
+  //A parameter without a sample is not in the page path. The static check reports it.
   const query = new URLSearchParams(
-    params.map(({ name, page = name, sample }) => [page, /** @type {string} */ (sample)]),
-  );
-  const pagePath = route + (params.length ? `?${query}` : "");
+    params.flatMap(({ name, page = name, sample }) =>
+      sample === undefined ? [] : [[page, sample]],
+    ),
+  ).toString();
+  const pagePath = route + (query ? `?${query}` : "");
   return { params, route, pagePath };
 };
 
@@ -410,6 +434,8 @@ export const checkPageHtml = (reference, path, entry, html) => {
     problems.push(`the API path is ${request.pathname}, not /v1${route}`);
   }
   for (const { name, sample, expect = sample } of params) {
+    //A parameter without a sample was not set, so its value is not known. The static check reports it.
+    if (sample === undefined) continue;
     const sent = request.searchParams.get(name);
     //The demo does not send a value that is the default of the API
     const isDefault = reference.endpoints[path].parameters[name]?.default === expect;

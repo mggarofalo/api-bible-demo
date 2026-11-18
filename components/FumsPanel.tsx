@@ -43,6 +43,15 @@ export const FumsReporter = ({ token, cached = false }: FumsReporterProps) => {
   return null;
 };
 
+/** Tells if the browser sent this request to the FUMS server */
+const isFumsRequest = (url: string) => {
+  try {
+    return new URL(url).origin === FUMS_SERVER;
+  } catch {
+    return false;
+  }
+};
+
 const short = (value: string | null | undefined) =>
   !value ? "none" : value.length > 14 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value;
 
@@ -100,7 +109,7 @@ export const FumsPanel = () => {
     }
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (entry.name.startsWith(FUMS_SERVER)) {
+        if (isFumsRequest(entry.name)) {
           const resource = entry as PerformanceResourceTiming;
           recordFumsRequest(
             new URL(entry.name),
@@ -120,6 +129,8 @@ export const FumsPanel = () => {
   const open =
     toggled?.path === pathname ? toggled.open : !!activeToken && !!report;
   const request = report?.request;
+  //The store keeps only the newest reports. The ID of the newest is the count of the session.
+  const count = reports.at(-1)?.id ?? 0;
 
   return (
     <aside
@@ -135,7 +146,7 @@ export const FumsPanel = () => {
         <span>
           <b>FUMS</b>
           <span className="ml-2 text-zinc-500">
-            {reports.length} {reports.length === 1 ? "report" : "reports"}
+            {count} {count === 1 ? "report" : "reports"}
           </span>
         </span>
         {open ? <ChevronDown size={12} /> : <ChevronUp size={12} />}

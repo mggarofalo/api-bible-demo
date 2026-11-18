@@ -131,6 +131,20 @@ describe("scripts/parity.mjs", () => {
       expect(result.failed).toBeGreaterThanOrEqual(1);
     });
 
+    it("fails for a parameter of the manifest that has no sample and is not deferred", () => {
+      const copy = makeCopy();
+      const manifest = join(copy, "parity", "coverage.mjs");
+      const source = readFileSync(manifest, "utf8");
+      expect(source).toContain('fuzziness: { sample: "1" }');
+      writeFileSync(manifest, source.replace('fuzziness: { sample: "1" }', "fuzziness: {}"));
+      const result = run(copy);
+      expect(result.status).toBe(1);
+      expect(result.failLines).toEqual([
+        '  FAIL  /bibles/{bibleId}/search: the parameter "fuzziness" has no sample',
+      ]);
+      expect(result.failed).toBe(1);
+    });
+
     it("stops with exit code 1 when the snapshot does not exist", () => {
       const copy = makeCopy();
       rmSync(join(copy, "parity", "api-reference.json"));

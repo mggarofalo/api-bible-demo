@@ -418,41 +418,56 @@ describe("BibleSidebar", () => {
   });
 
   describe("current location", () => {
-    it("marks the current chapter row as active", async () => {
+    //Only one element of the sidebar can say that it is the current page
+    const currentLinks = (sidebar: HTMLElement) =>
+      Array.from(sidebar.querySelectorAll("[aria-current]"));
+
+    it("marks only the chapter link as the current page on a chapter page", async () => {
       setRoute("/bibles/bible1/chapters/GEN.1", { chapterId: "GEN.1" });
       mockFetch();
       const user = userEvent.setup();
       renderSidebar();
-      await openByHover(user);
+      const sidebar = await openByHover(user);
       await screen.findByRole("link", { name: "1" });
 
       const current = screen.getByRole("link", { name: "Chapter 1" });
-      const other = screen.getByRole("link", { name: "Chapter 2" });
-      //The class of the row is the only signal of the active row
-      expect(current.parentElement).toHaveClass("bg-accent", "text-white");
-      expect(other.parentElement).not.toHaveClass("bg-accent");
+      expect(current).toHaveAttribute("aria-current", "page");
       //The book is in the path, but it is not the page
-      expect(
-        screen.getByRole("link", { name: "Genesis" }).parentElement,
-      ).toHaveClass("bg-accent-soft");
+      expect(screen.getByRole("link", { name: "Genesis" })).not.toHaveAttribute(
+        "aria-current",
+      );
+      expect(currentLinks(sidebar)).toEqual([current]);
     });
 
-    it("marks the current verse and opens its chapter on a verse page", async () => {
+    it("marks only the verse link as the current page and opens its chapter on a verse page", async () => {
       setRoute("/bibles/bible1/verses/GEN.1.2", { verseId: "GEN.1.2" });
       const fetchMock = mockFetch();
       const user = userEvent.setup();
       renderSidebar();
-      await openByHover(user);
+      const sidebar = await openByHover(user);
 
       const verse = await screen.findByRole("link", { name: "2" });
 
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/bibles/bible1/chapters/GEN.1/verses",
       );
-      expect(verse).toHaveClass("bg-accent", "text-white");
-      expect(screen.getByRole("link", { name: "1" })).not.toHaveClass(
-        "bg-accent",
+      expect(verse).toHaveAttribute("aria-current", "page");
+      //The chapter and the book are in the path, but they are not the page
+      expect(screen.getByRole("link", { name: "Chapter 1" })).not.toHaveAttribute(
+        "aria-current",
       );
+      expect(currentLinks(sidebar)).toEqual([verse]);
+    });
+
+    it("marks no link as the current page on a page that is in a chapter but is not the chapter", async () => {
+      setRoute("/bibles/bible1/chapters/GEN.1/verses", { chapterId: "GEN.1" });
+      mockFetch();
+      const user = userEvent.setup();
+      renderSidebar();
+      const sidebar = await openByHover(user);
+      await screen.findByRole("link", { name: "1" });
+
+      expect(currentLinks(sidebar)).toEqual([]);
     });
 
     it("decodes the encoded IDs of the URL", async () => {
@@ -468,16 +483,16 @@ describe("BibleSidebar", () => {
       );
     });
 
-    it("marks the book row as active on a book page", async () => {
+    it("marks only the book link as the current page on a book page", async () => {
       setRoute("/bibles/bible1/books/GEN", { bookId: "GEN" });
       mockFetch();
       const user = userEvent.setup();
       renderSidebar();
-      await openByHover(user);
+      const sidebar = await openByHover(user);
 
-      expect(
-        screen.getByRole("link", { name: "Genesis" }).parentElement,
-      ).toHaveClass("bg-accent", "text-white");
+      const book = screen.getByRole("link", { name: "Genesis" });
+      expect(book).toHaveAttribute("aria-current", "page");
+      expect(currentLinks(sidebar)).toEqual([book]);
     });
   });
 });

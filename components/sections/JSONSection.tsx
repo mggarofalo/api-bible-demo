@@ -58,6 +58,11 @@ export const JSONSection = ({
           ? `${Math.round(cachedSeconds / 60)} min ago`
           : `${Math.round(cachedSeconds / 3600)} h ago`;
 
+  //These headers come from the CDN of API.Bible. A reader can think that they are about the cache of the demo.
+  const hasCdnHeaders = !!exchange?.response.headers.some(
+    ([name]) => name.toLowerCase() === "x-cache",
+  );
+
   //A response that contains Scripture has a FUMS token, which the page must report
   const fumsToken = (json as { meta?: { fumsToken?: string } }).meta?.fumsToken;
 
@@ -108,18 +113,27 @@ export const JSONSection = ({
             <p className="font-mono text-sm">
               <b>{exchange.response.status}</b> {exchange.response.statusText}{" "}
               in {exchange.response.durationMs} ms
+              {cachedAge !== undefined && ", when the demo called the API"}
             </p>
             {cachedAge !== undefined && (
               <>
                 <Label>Cache</Label>
                 <p className="text-sm">
                   The demo got this response from the API {cachedAge}. It did
-                  not call the API for this view.
+                  not call the API for this view. The status, the time and the
+                  headers are from that call.
                 </p>
               </>
             )}
             <Label>Headers</Label>
             <Headers headers={exchange.response.headers} />
+            {hasCdnHeaders && (
+              <p className="mt-2 text-xs text-zinc-500">
+                The <code>x-cache</code> and <code>via</code> headers are from
+                the CDN of API.Bible. They do not tell you about the cache of
+                the demo.
+              </p>
+            )}
             <Label>Body</Label>
             <p className="text-sm">
               <JsonBodyLink />

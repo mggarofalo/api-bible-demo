@@ -87,6 +87,10 @@ export const BibleSidebar = () => {
     }
   };
 
+  //Only the link of the page that shows is current. Its book and chapter are in the path, but they are not the page.
+  const currentPage = (href: string) =>
+    pathname === href ? ("page" as const) : undefined;
+
   const rowClass = (href: string, inPath: boolean) =>
     pathname === href
       ? "bg-accent text-white"
@@ -169,6 +173,7 @@ export const BibleSidebar = () => {
                     <Link
                       href={bookHref}
                       prefetch={false}
+                      aria-current={currentPage(bookHref)}
                       className="grow py-2 pr-3"
                     >
                       {book.name}
@@ -204,6 +209,7 @@ export const BibleSidebar = () => {
                             <Link
                               href={chapterHref}
                               prefetch={false}
+                              aria-current={currentPage(chapterHref)}
                               className="grow py-1.5 pr-3"
                             >
                               {name}
@@ -231,21 +237,25 @@ export const BibleSidebar = () => {
                               {Array.isArray(chapterVerses) &&
                                 !!chapterVerses.length && (
                                   <div className="grid grid-cols-6 gap-1">
-                                    {chapterVerses.map((verse) => (
-                                      <Link
-                                        key={verse.id}
-                                        href={`/bibles/${bibleId}/verses/${verse.id}`}
-                                        prefetch={false}
-                                        title={verse.id}
-                                        className={`py-1 text-xs text-center rounded border-[1px] ${
-                                          verse.id === current.verseId
-                                            ? "bg-accent text-white border-accent"
-                                            : "border-zinc-300 hover:bg-accent hover:text-white hover:border-accent"
-                                        }`}
-                                      >
-                                        {verse.number}
-                                      </Link>
-                                    ))}
+                                    {chapterVerses.map((verse) => {
+                                      const verseHref = `/bibles/${bibleId}/verses/${verse.id}`;
+                                      return (
+                                        <Link
+                                          key={verse.id}
+                                          href={verseHref}
+                                          prefetch={false}
+                                          aria-current={currentPage(verseHref)}
+                                          title={verse.id}
+                                          className={`py-1 text-xs text-center rounded border-[1px] ${
+                                            verse.id === current.verseId
+                                              ? "bg-accent text-white border-accent"
+                                              : "border-zinc-300 hover:bg-accent hover:text-white hover:border-accent"
+                                          }`}
+                                        >
+                                          {verse.number}
+                                        </Link>
+                                      );
+                                    })}
                                   </div>
                                 )}
                             </div>

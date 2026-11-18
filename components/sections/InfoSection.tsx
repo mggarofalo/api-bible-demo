@@ -67,14 +67,12 @@ export const InfoSection = ({
     document.documentElement.dataset.help = next ? "collapsed" : "shown";
   };
 
-  const onUrlCopy = async () => {
-    if (url) {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    }
+  const onUrlCopy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   };
 
   return (
@@ -103,7 +101,7 @@ export const InfoSection = ({
                   <Copy
                     size={16}
                     className="cursor-pointer"
-                    onClick={onUrlCopy}
+                    onClick={() => onUrlCopy(url)}
                   />
                 )}
               </div>

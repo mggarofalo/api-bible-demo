@@ -5,7 +5,7 @@ import { findEndpoint } from "@/utils/apiReference";
 import type { QueryParam } from "@/utils/queryParams";
 import { ChevronDown, Loader } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useId, useTransition } from "react";
 import { useScopedBibles } from "../BibleNav";
 import { Combobox } from "../Combobox";
 import { Tip } from "../EndpointNav";
@@ -44,6 +44,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const bibles = useScopedBibles();
+  const sentTextId = useId();
 
   const onChange = (param: QueryParam, value: string) => {
     if (value === param.value) {
@@ -110,6 +111,11 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
     `text-sm font-bold bg-white border-[1px] ${
       changed(param) ? "border-accent text-accent" : "border-line"
     }`;
+  //The color is not the only signal: the wrapper has `data-sent`, and a screen reader
+  //reads "Sent in the request" as the description of the control
+  const sentProps = (param: QueryParam) => ({
+    "aria-describedby": changed(param) ? sentTextId : undefined,
+  });
 
   return (
     <div className="w-full flex items-stretch border-line border-b-[1px]">
@@ -127,18 +133,23 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
           </button>
           {pending && <Loader size={14} className="animate-spin" />}
         </h6>
+        <span id={sentTextId} className="sr-only">
+          Sent in the request
+        </span>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
           {params.map((param) => {
             if (isBoolean(param)) {
               return (
                 <label
                   key={param.name}
+                  data-sent={changed(param)}
                   className={`flex items-center gap-1.5 py-1 font-mono text-xs cursor-pointer ${
                     changed(param) ? "text-accent font-bold" : "text-zinc-600"
                   }`}
                 >
                   <input
                     type="checkbox"
+                    {...sentProps(param)}
                     checked={param.value === "true"}
                     onChange={(event) =>
                       onChange(param, String(event.target.checked))
@@ -210,13 +221,18 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
             }
 
             return (
-              <label key={param.name} className="flex flex-col gap-0.5">
+              <label
+                key={param.name}
+                data-sent={changed(param)}
+                className="flex flex-col gap-0.5"
+              >
                 <span className="font-mono text-xs text-zinc-500">
                   {paramName(param.name)}
                 </span>
                 {param.options.length ? (
                   <span className="relative">
                     <select
+                      {...sentProps(param)}
                       value={param.value}
                       onChange={(event) => onChange(param, event.target.value)}
                       className={`appearance-none w-full pl-2 pr-7 py-1 cursor-pointer hover:bg-accent-soft ${boxClass(param)}`}
@@ -237,6 +253,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                     type="text"
                     //A new value from the server replaces the text that the user typed
                     key={param.value}
+                    {...sentProps(param)}
                     defaultValue={param.value}
                     placeholder={param.placeholder}
                     autoComplete="off"

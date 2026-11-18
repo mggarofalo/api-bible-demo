@@ -344,47 +344,59 @@ describe("QueryParamsSection", () => {
   });
 
   describe("highlighting", () => {
-    //The class is the only signal that a parameter is in the API request
+    //A sent parameter has the description "Sent in the request", and its wrapper has `data-sent="true"`
+    const SENT = "Sent in the request";
+    const expectSent = (control: HTMLElement, sent: boolean) => {
+      if (sent) {
+        expect(control).toHaveAccessibleDescription(SENT);
+      } else {
+        expect(control).not.toHaveAccessibleDescription(SENT);
+      }
+      expect(control.closest("label")).toHaveAttribute("data-sent", String(sent));
+    };
     const boxOf = (name: RegExp) => screen.getByRole("combobox", { name });
 
-    it("highlights a parameter that the request sends", () => {
+    it("marks a parameter that the request sends", () => {
       renderSection(CHAPTER, "content-type=json&include-notes=true", contentParams());
 
-      expect(boxOf(/^content-type/)).toHaveClass("border-accent");
-      expect(screen.getByRole("checkbox", { name: /^include-notes/ }).closest("label")).toHaveClass(
-        "text-accent",
-      );
+      expectSent(boxOf(/^content-type/), true);
+      expectSent(screen.getByRole("checkbox", { name: /^include-notes/ }), true);
     });
 
-    it("does not highlight a parameter with the default value of the API", () => {
+    it("does not mark a parameter with the default value of the API", () => {
       renderSection(CHAPTER, "", contentParams());
 
-      expect(boxOf(/^content-type/)).not.toHaveClass("border-accent");
-      expect(boxOf(/^content-type/)).toHaveClass("border-line");
+      expectSent(boxOf(/^content-type/), false);
       //`include-titles` is true by default in the API
-      expect(screen.getByRole("checkbox", { name: /^include-titles/ }).closest("label")).not.toHaveClass(
-        "text-accent",
-      );
+      expectSent(screen.getByRole("checkbox", { name: /^include-titles/ }), false);
     });
 
-    it("highlights a page default that differs from the default of the API", () => {
+    it("marks a page default that differs from the default of the API", () => {
       renderSection(CHAPTER, "", contentParams({ "content-type": "json" }));
 
       expect(boxOf(/^content-type/)).toHaveValue("json");
-      expect(boxOf(/^content-type/)).toHaveClass("border-accent");
+      expectSent(boxOf(/^content-type/), true);
     });
 
-    it("highlights a typed parameter that has text, and not an empty one", () => {
+    it("marks a typed parameter that has text, and not an empty one", () => {
       renderSection(SEARCH, "query=love", [
         textParam("query", "e.g. love"),
         textParam("range", "GEN"),
         textParam("limit", "10", "10"),
       ]);
 
-      expect(screen.getByRole("textbox", { name: /^query/ })).toHaveClass("border-accent");
-      expect(screen.getByRole("textbox", { name: /^range/ })).not.toHaveClass("border-accent");
+      expectSent(screen.getByRole("textbox", { name: /^query/ }), true);
+      expectSent(screen.getByRole("textbox", { name: /^range/ }), false);
       //The API default of `limit` is 10
-      expect(screen.getByRole("textbox", { name: /^limit/ })).not.toHaveClass("border-accent");
+      expectSent(screen.getByRole("textbox", { name: /^limit/ }), false);
+    });
+
+    it("does not add the description text to the name of a control", () => {
+      renderSection(SEARCH, "query=love", [textParam("query", "e.g. love")]);
+
+      expect(screen.getByRole("textbox", { name: /^query/ })).not.toHaveAccessibleName(
+        new RegExp(SENT),
+      );
     });
   });
 

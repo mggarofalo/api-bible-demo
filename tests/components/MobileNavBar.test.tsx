@@ -52,4 +52,23 @@ describe("MobileNavbar", () => {
     expect(screen.queryByText("menu items")).toBeNull();
     expect(document.body.style.overflowY).toBe("auto");
   });
+
+  it("opens and closes from the keyboard, and names its state", async () => {
+    const user = userEvent.setup();
+    render(<Menu />);
+    const button = screen.getByRole("button", { name: "Open the menu" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByText("menu items")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close the menu" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+
+    await user.keyboard(" ");
+    expect(screen.queryByText("menu items")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open the menu" })).toBeInTheDocument();
+  });
 });

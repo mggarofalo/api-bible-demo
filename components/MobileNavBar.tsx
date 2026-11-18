@@ -24,11 +24,20 @@ export const MobileNavbar = ({ children }: MobileNavbarProps) => {
 
   return (
     <>
-      {isOpened ? (
-        <XCircle size={24} className="cursor-pointer" onClick={handleToggle} />
-      ) : (
-        <Menu size={24} className="cursor-pointer" onClick={handleToggle} />
-      )}
+      {/* A button, so that the keyboard and a screen reader can use the menu */}
+      <button
+        type="button"
+        aria-label={isOpened ? "Close the menu" : "Open the menu"}
+        aria-expanded={isOpened}
+        onClick={handleToggle}
+        className="cursor-pointer"
+      >
+        {isOpened ? (
+          <XCircle size={24} aria-hidden="true" />
+        ) : (
+          <Menu size={24} aria-hidden="true" />
+        )}
+      </button>
       {isOpened && (
         <div
           key={pathname}

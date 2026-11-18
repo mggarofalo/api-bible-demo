@@ -90,6 +90,42 @@ describe("Markdown", () => {
     expect(container).toHaveTextContent("<script>window.__x=1</script>");
   });
 
+  it.each([
+    "https://x.test/a",
+    "http://x.test/a",
+    "mailto:help@x.test",
+    "MAILTO:help@x.test",
+    "/bibles",
+    "#section",
+    "?page=2",
+    "docs/page",
+  ])("keeps a link to %s", (href) => {
+    render(<Markdown text={`See [here](${href}).`} />);
+    expect(screen.getByRole("link", { name: "here" })).toHaveAttribute("href", href);
+  });
+
+  it.each([
+    "javascript:alert%281%29",
+    "JaVaScRiPt:alert%281%29",
+    "\u0001javascript:alert%281%29",
+    "\u001fjavascript:alert%281%29",
+    "data:text/html,hi",
+    "vbscript:msgbox%281%29",
+    "ftp://x.test/a",
+    "https://x.test:bad/a",
+  ])("shows only the text of a link to %j", (href) => {
+    const { container } = render(<Markdown text={`See [here](${href}).`} />);
+    expect(container.querySelector("a")).toBeNull();
+    expect(container).toHaveTextContent("See here.");
+  });
+
+  it("does not make a link when the URL has a space or a tab in it", () => {
+    const { container } = render(
+      <Markdown text={"[a](java\tscript:x) [b]( javascript:x)"} />,
+    );
+    expect(container.querySelector("a")).toBeNull();
+  });
+
   it("renders inline mode as running text without paragraphs", () => {
     const { container } = render(
       <p>

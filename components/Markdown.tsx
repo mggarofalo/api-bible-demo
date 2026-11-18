@@ -10,6 +10,23 @@ type MarkdownProps = {
 //Marks an asterisk that the text escapes (`\*`), so it is not read as emphasis
 const ESCAPED_ASTERISK = "\u0000";
 
+//The kinds of URL that a link can have. A URL with no scheme is relative to the page.
+const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+const RELATIVE_BASE = "https://base.invalid";
+
+/**
+ * Tells if a link can go to this URL. Other schemes, such as `javascript:` or `data:`,
+ * can run code, so the text of such a link shows with no link. The URL parser
+ * removes spaces and control characters and ignores case, as the browser does.
+ */
+const isSafeHref = (href: string) => {
+  try {
+    return SAFE_PROTOCOLS.has(new URL(href, RELATIVE_BASE).protocol);
+  } catch {
+    return false;
+  }
+};
+
 /** Renders the Markdown in one line of text: code, bold, emphasis and links */
 const renderInline = (text: string): ReactNode[] =>
   text
@@ -30,6 +47,9 @@ const renderInline = (text: string): ReactNode[] =>
         return <b key={index}>{plain(part.slice(2, -2))}</b>;
       }
       const link = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+      if (link && !isSafeHref(link[2])) {
+        return <Fragment key={index}>{plain(link[1])}</Fragment>;
+      }
       if (link) {
         return (
           <a key={index} href={link[2]} className="underline">

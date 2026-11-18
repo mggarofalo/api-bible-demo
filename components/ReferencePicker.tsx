@@ -23,7 +23,8 @@ type Reference = {
   toVerse: string;
 };
 
-const lastPart = (id: string) => id.split(".").pop() ?? "";
+//The text after the last dot, or all the text when it has no dot
+const lastPart = (id: string) => id.slice(id.lastIndexOf(".") + 1);
 
 /**
  * Gives the text of a reference (for example "Genesis 1:1-3") and the page of this

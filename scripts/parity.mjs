@@ -16,7 +16,8 @@
  *   1. Endpoints   Each endpoint of the reference is in the manifest, and each entry of
  *                  the manifest is an endpoint of the reference.
  *   2. Parameters  Each query parameter of each covered endpoint is in the manifest, and
- *                  the manifest has no parameter that the reference does not have. The
+ *                  the manifest has no parameter that the reference does not have. Each
+ *                  parameter that is not deferred has a sample for the live check. The
  *                  reference has a summary and a description for each endpoint, and a
  *                  description for each parameter, because the demo shows them as help text.
  *   3. Source      For each covered endpoint, the demo has a page at the same path, and

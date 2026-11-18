@@ -42,8 +42,15 @@ declare global {
   }
 }
 
+/**
+ * Number of reports that the store keeps. When there are more, the oldest drop. The
+ * FUMS panel shows only the newest report of a token, so it needs only the newest reports.
+ */
+export const MAX_FUMS_REPORTS = 50;
+
 /** One report of a token to FUMS, as the FUMS panel shows it */
 export type FumsReport = {
+  /** Number of the report in the session. It counts up, also after old reports drop. */
   id: number;
   token: string;
   /** Path of the page that got the token */
@@ -73,6 +80,7 @@ const EMPTY_STATE: FumsState = { reports: [], activeToken: null };
 let state = EMPTY_STATE;
 const listeners = new Set<() => void>();
 let lastReport = { token: "", at: 0 };
+let reportCount = 0;
 
 const setState = (next: FumsState) => {
   state = next;
@@ -105,12 +113,13 @@ export const reportFumsToken = (token: string, path: string, cached: boolean) =>
 
   if (!repeated) {
     window.fums?.("trackView", token);
+    reportCount += 1;
     setState({
       activeToken: token,
       reports: [
         ...state.reports,
-        { id: state.reports.length + 1, token, path, cached },
-      ],
+        { id: reportCount, token, path, cached },
+      ].slice(-MAX_FUMS_REPORTS),
     });
   } else {
     setState({ ...state, activeToken: token });

@@ -57,6 +57,22 @@ describe("NavControls", () => {
     expect(root).toHaveClass("dark");
   });
 
+  it("removes its window listener when the button unmounts", () => {
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const { unmount } = render(<NavControls />);
+    const added = add.mock.calls.filter(([type]) => type === "theme-change");
+    expect(added).toHaveLength(1);
+    const handler = added[0][1];
+    expect(remove).not.toHaveBeenCalledWith("theme-change", handler);
+
+    unmount();
+
+    expect(remove).toHaveBeenCalledWith("theme-change", handler);
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
   describe("initial settings script", () => {
     const run = () => new Function(INITIAL_SETTINGS_SCRIPT)();
 

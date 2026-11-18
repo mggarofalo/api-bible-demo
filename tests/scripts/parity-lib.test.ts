@@ -215,6 +215,33 @@ describe("normalizeReference", () => {
     expect(result.endpoints["/empty"]).toEqual({ methods: [], parameters: {} });
   });
 
+  it("counts only the HTTP methods of a path item", () => {
+    const result = normalizeReference(
+      {
+        paths: {
+          "/a": {
+            servers: [{ url: "https://other.test" }],
+            "x-internal": { note: "An extension is not a method" },
+            parameters: [{ name: "shared", in: "query" }],
+            get: {},
+            put: {},
+            post: {},
+            delete: {},
+            options: {},
+            head: {},
+            patch: {},
+            trace: {},
+          },
+        },
+      },
+      "x",
+    );
+    expect(result.endpoints["/a"]).toEqual({
+      methods: ["delete", "get", "head", "options", "patch", "post", "put", "trace"],
+      parameters: { shared: {} },
+    });
+  });
+
   it("uses the summary of the first method in alphabetical order", () => {
     const result = normalizeReference(
       { paths: { "/a": { put: { summary: "Put" }, get: { summary: "Get" } } } },
@@ -341,7 +368,7 @@ describe("referenceDifferences", () => {
     ]);
   });
 
-  it("reports only the first change of a parameter", () => {
+  it("reports each change of a parameter", () => {
     const published = reference();
     published.endpoints["/bibles"].parameters["include-full-details"] = {
       description: "Other",
@@ -350,6 +377,19 @@ describe("referenceDifferences", () => {
     };
     expect(referenceDifferences(reference(), published)).toEqual([
       '/bibles: the description of "include-full-details" changed',
+      '/bibles: the default of "include-full-details" changed to "true"',
+      '/bibles: the values of "include-full-details" changed to yes',
+    ]);
+  });
+
+  it("reports a changed default and changed values without a changed description", () => {
+    const published = reference();
+    const parameter = published.endpoints["/bibles"].parameters["include-full-details"];
+    delete parameter.default;
+    parameter.values = ["true"];
+    expect(referenceDifferences(reference(), published)).toEqual([
+      '/bibles: the default of "include-full-details" changed to no default',
+      '/bibles: the values of "include-full-details" changed to true',
     ]);
   });
 });
@@ -496,7 +536,20 @@ describe("checkParameters", () => {
   it("skips an entry that is not in the reference", () => {
     expect(checkParameters(reference(), [["/gone", { params }]])).toEqual([]);
   });
-});
+
+  //The live check cannot set a parameter without a sample, so the manifest must give one
+  it("fails for a parameter that has no sample and is not deferred", () => {
+    expect(
+      checkParameters(reference(), [
+        ["/bibles", { params: { ...params, language: {} } }],
+      ]),
+    ).toEqual([failure('/bibles: the parameter "language" has no sample')]);
+    expect(
+      checkParameters(reference(), [
+        ["/bibles", { params: { ...params, language: { expect: "eng" } } }],
+      ]),
+    ).toEqual([failure('/bibles: the parameter "language" has no sample')]);
+  });});
 
 describe("checkSource", () => {
   const pages: Record<string, string> = {
@@ -692,6 +745,19 @@ describe("pageRequest", () => {
     });
   });
 
+  it("does not put a parameter without a sample in the page path", () => {
+    expect(
+      pageRequest("/bibles", {
+        params: { language: { sample: "eng" }, name: {} },
+      }),
+    ).toEqual({
+      params: [{ name: "language", sample: "eng" }, { name: "name" }],
+      route: "/bibles",
+      pagePath: "/bibles?language=eng",
+    });
+    expect(pageRequest("/bibles", { params: { name: {} } }).pagePath).toBe("/bibles");
+  });
+
   it("gives no query when there are no parameters", () => {
     expect(pageRequest("/bibles/{bibleId}", { ids: { bibleId: "kjv" } }).pagePath).toBe(
       "/bibles/kjv",
@@ -884,6 +950,23 @@ describe("checkPageHtml", () => {
         html({ request: "https://rest.api.bible/v1/bibles" }),
       ),
     ).toEqual([failure('/bibles: "language" is absent in the API request, not "eng"')]);
+  });
+
+  //The static check reports a parameter without a sample. The page check cannot set it, so
+  //it does not compare its value, and does not load the page with "undefined" as the value.
+  it("does not check the value of a parameter without a sample", () => {
+    const noSample = { params: { ...entry.params, language: {} } };
+    expect(checkPageHtml(reference(), "/bibles", noSample, "<html></html>")).toEqual([
+      failure(
+        "/bibles: /bibles?include-full-details=false does not show an API request. The page or the API call failed.",
+      ),
+    ]);
+    expect(
+      checkPageHtml(reference(), "/bibles", noSample, html({ request: "https://rest.api.bible/v1/bibles" })),
+    ).toEqual([ok("/bibles → /v1/bibles")]);
+    expect(checkPageHtml(reference(), "/bibles", noSample, html())).toEqual([
+      ok("/bibles → /v1/bibles?language=eng"),
+    ]);
   });
 
   it("fails when the response has a FUMS token but the page does not load the script", () => {

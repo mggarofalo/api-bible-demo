@@ -107,6 +107,7 @@ describe("JSONSection", () => {
     expect(screen.getByText(/200 OK · 123 ms/)).toBeInTheDocument();
     const response = screen.getByText("Response").closest("details")!;
     expect(response).toHaveTextContent("200 OK in 123 ms");
+    expect(response).not.toHaveTextContent("when the demo called the API");
     expect(within(response).queryByText("Cache")).toBeNull();
     expect(
       within(response).getByRole("link", { name: "Raw JSON Output" }),
@@ -123,6 +124,9 @@ describe("JSONSection", () => {
     const response = screen.getByText("Response").closest("details")!;
     expect(within(response).getByText("Cache")).toBeInTheDocument();
     expect(response).toHaveTextContent(`from the API ${text}`);
+    //The time is the time of the first call, not of this view
+    expect(response).toHaveTextContent("200 OK in 123 ms, when the demo called the API");
+    expect(response).toHaveTextContent("The status, the time and the headers are from that call.");
   });
 
   it("reports the FUMS token from the response meta", () => {
@@ -137,5 +141,22 @@ describe("JSONSection", () => {
     reporter.mockClear();
     render(<JSONSection json={{ data: [] }} exchange={exchange()} />);
     expect(reporter).toHaveBeenCalledWith({ token: undefined, cached: false });
+  });
+
+  it.each(["x-cache", "X-Cache"])(
+    "says that the %s header is from the CDN of API.Bible, not the cache of the demo",
+    (name) => {
+      const ex = exchange(30);
+      ex.response.headers = [...ex.response.headers, [name, "Miss from cloudfront"]];
+      render(<JSONSection json={{}} exchange={ex} />);
+      const response = screen.getByText("Response").closest("details")!;
+      expect(response).toHaveTextContent("They do not tell you about the cache of the demo.");
+    },
+  );
+
+  it("gives no note about the CDN when the response has no x-cache header", () => {
+    render(<JSONSection json={{}} exchange={exchange()} />);
+    const response = screen.getByText("Response").closest("details")!;
+    expect(response).not.toHaveTextContent("CDN of API.Bible");
   });
 });

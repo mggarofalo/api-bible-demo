@@ -71,6 +71,7 @@ API.Bible gives a `fumsToken` in the `meta` of each response that contains Scrip
 
 - The root layout loads the FUMS script (`https://pkg.api.bible/fumsV3.min.js`) and the small shim that makes the `fums` function before the script loads.
 - Each page that shows a response with a token calls `fums("trackView", token)` each time the page shows. See [utils/fums.ts](./utils/fums.ts).
+- A response has one token, also when the request has the `parallels` parameter. The token of such a response names the main Bible and each parallel Bible, so one report is sufficient for the page. Search responses also have a token, and the demo reports it.
 - The demo has no users, so it gives FUMS a fixed sample user ID. A real application gives the ID of the logged-in user, without personal data, or no ID.
 
 A small panel at the bottom right of the window shows each report as four steps: the token from the API, the call to the script, the IDs that the script added (device, session and user), and the request to the FUMS server. The reports are real reports for the API calls of your key.

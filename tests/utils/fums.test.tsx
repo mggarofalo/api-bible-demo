@@ -132,17 +132,44 @@ describe("reportFumsToken", () => {
     ]);
   });
 
-  it("gives each report the next ID and keeps all reports", () => {
-    for (let i = 1; i <= 30; i++) {
+  it("keeps 50 reports", () => {
+    expect(fums.MAX_FUMS_REPORTS).toBe(50);
+  });
+
+  it("gives each report the next ID and keeps all reports up to the limit", () => {
+    const max = fums.MAX_FUMS_REPORTS;
+    for (let i = 1; i <= max; i++) {
       fums.reportFumsToken(`token-${i}`, `/page-${i}`, i % 2 === 0);
     }
     const { reports, activeToken } = fums.fumsStore.getSnapshot();
-    expect(reports).toHaveLength(30);
+    expect(reports).toHaveLength(max);
     expect(reports.map(({ id }) => id)).toEqual(
-      Array.from({ length: 30 }, (_, i) => i + 1),
+      Array.from({ length: max }, (_, i) => i + 1),
     );
     expect(reports[1].cached).toBe(true);
-    expect(activeToken).toBe("token-30");
+    expect(activeToken).toBe(`token-${max}`);
+  });
+
+  it("drops the oldest reports after the limit and keeps counting the IDs", () => {
+    const max = fums.MAX_FUMS_REPORTS;
+    for (let i = 1; i <= max + 5; i++) {
+      fums.reportFumsToken(`token-${i}`, `/page-${i}`, false);
+    }
+    const { reports, activeToken } = fums.fumsStore.getSnapshot();
+    expect(reports).toHaveLength(max);
+    expect(reports[0]).toEqual({ id: 6, token: "token-6", path: "/page-6", cached: false });
+    expect(reports.at(-1)?.id).toBe(max + 5);
+    expect(activeToken).toBe(`token-${max + 5}`);
+  });
+
+  it("does not use an ID again after the oldest reports drop", () => {
+    const max = fums.MAX_FUMS_REPORTS;
+    for (let i = 1; i <= max * 2; i++) {
+      fums.reportFumsToken(`token-${i}`, "/a", false);
+    }
+    const ids = fums.fumsStore.getSnapshot().reports.map(({ id }) => id);
+    expect(new Set(ids).size).toBe(max);
+    expect(ids).toEqual(Array.from({ length: max }, (_, i) => max + i + 1));
   });
 
   it("does not report the same token again within one second", () => {
@@ -196,6 +223,18 @@ describe("leaveFumsPage", () => {
     const snapshot = fums.fumsStore.getSnapshot();
     expect(snapshot.activeToken).toBeNull();
     expect(snapshot.reports).toHaveLength(1);
+  });
+
+  it("changes nothing for a page whose report was dropped", () => {
+    fums.reportFumsToken("old", "/old", false);
+    for (let i = 1; i <= fums.MAX_FUMS_REPORTS; i++) {
+      fums.reportFumsToken(`token-${i}`, "/a", false);
+    }
+    const before = fums.fumsStore.getSnapshot();
+    expect(before.reports.some(({ token }) => token === "old")).toBe(false);
+
+    expect(() => fums.leaveFumsPage("old")).not.toThrow();
+    expect(fums.fumsStore.getSnapshot()).toBe(before);
   });
 
   it("keeps the active token when a different page leaves", () => {
@@ -283,6 +322,42 @@ describe("recordFumsRequest", () => {
     fums.recordFumsRequest(fumsUrl(["a"]), 500, 9);
     expect(fums.fumsStore.getSnapshot()).toBe(before);
     expect(before.reports[0].request?.status).toBe(200);
+  });
+
+  it("ignores a request for a report that was dropped", () => {
+    fums.reportFumsToken("old", "/old", false);
+    for (let i = 1; i <= fums.MAX_FUMS_REPORTS; i++) {
+      fums.reportFumsToken(`token-${i}`, "/a", false);
+    }
+    const before = fums.fumsStore.getSnapshot();
+
+    expect(() => fums.recordFumsRequest(fumsUrl(["old"]), 200, 1)).not.toThrow();
+    expect(fums.fumsStore.getSnapshot()).toBe(before);
+    expect(before.reports.some(({ token }) => token === "old")).toBe(false);
+  });
+
+  it("attaches a request to a kept report when an older one was dropped", () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(10_000);
+    fums.reportFumsToken("a", "/a", false);
+    for (let i = 1; i < fums.MAX_FUMS_REPORTS; i++) {
+      fums.reportFumsToken(`token-${i}`, "/b", false);
+    }
+    now.mockReturnValue(20_000);
+    //This report of "a" drops the first one
+    fums.reportFumsToken("a", "/a", true);
+
+    fums.recordFumsRequest(fumsUrl(["a"]), 200, 1);
+    const reports = fums.fumsStore.getSnapshot().reports;
+    expect(reports).toHaveLength(fums.MAX_FUMS_REPORTS);
+    expect(reports.filter(({ token }) => token === "a")).toEqual([
+      {
+        id: fums.MAX_FUMS_REPORTS + 1,
+        token: "a",
+        path: "/a",
+        cached: true,
+        request: expect.objectContaining({ status: 200 }),
+      },
+    ]);
   });
 
   it("keeps the active token", () => {
