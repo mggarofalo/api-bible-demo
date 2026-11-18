@@ -1,5 +1,6 @@
 import { createBibleClient } from "@americanbible/api-bible-sdk";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { removeApiDefaults } from "./apiDefaults";
 
 /**
  * The HTTP request sent to API.Bible for a single call, and the response it returned
@@ -31,19 +32,23 @@ const SECRET_HEADERS = ["api-key", "authorization"];
 const traces = new AsyncLocalStorage<Trace>();
 
 /**
- * Stand-in for `fetch` that records each request made inside a `traced` call, along
- * with its response. Outside of `traced` it behaves exactly like `fetch`.
+ * Stand-in for `fetch` that the SDK uses for each request. It does three things:
+ *   - Adds the query parameters that the SDK cannot send (see `traced`).
+ *   - Removes the query parameters that have the default value of the API, so each
+ *     request shows only the parameters that change the response.
+ *   - Records the request and its response, when it is inside a `traced` call.
  */
 const recordingFetch: typeof fetch = async (input, init) => {
   const trace = traces.getStore();
-  if (!trace) {
-    return fetch(input, init);
-  }
 
-  //Add the query parameters that the SDK cannot send
   const url = new URL(new Request(input).url);
-  for (const [name, value] of Object.entries(trace.extraQuery)) {
+  for (const [name, value] of Object.entries(trace?.extraQuery ?? {})) {
     url.searchParams.set(name, value);
+  }
+  removeApiDefaults(url);
+
+  if (!trace) {
+    return fetch(url, init);
   }
 
   const request = new Request(url, init);

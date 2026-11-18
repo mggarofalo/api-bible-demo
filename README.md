@@ -48,7 +48,7 @@ As mentioned earlier, the structure of this app is designed to mimic the API. Wh
 Each page that calls the API shows, under its header:
 
 - **Query Parameters**: a control for every query parameter of the endpoint. A change goes into the URL of the page, the server sends the request again, and the page shows the new result.
-- **Request** and **Response**: the HTTP request that the server sent (the API key is not shown) and the status, time and headers of the response.
+- **Request** and **Response**: the HTTP request that the server sent (the API key is not shown) and the status, time and headers of the response. The request does not contain a query parameter that has the default value of the API. The defaults come from the snapshot of the API reference.
 - **Raw JSON Output**: the body of the response.
 
 To move through a Bible, use the sidebar (the `>>` button at the top left), or click the Bible or the reference in the header. The reference opens a form that selects a book, a chapter, a verse or a range of verses.

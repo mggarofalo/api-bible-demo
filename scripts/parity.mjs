@@ -29,7 +29,9 @@
  *                  value. The API request that the page made must have:
  *                    - the status 200
  *                    - the same path as the page (the paths of the demo agree with the API)
- *                    - each parameter of the manifest, with the expected value
+ *                    - each parameter of the manifest, with the expected value. A value
+ *                      that is the default of the API must be absent: the demo does
+ *                      not send defaults.
  *                    - no parameter that the manifest does not have
  *
  * Options:
@@ -75,7 +77,8 @@ const section = (title) => console.log(`\n${title}`);
 /**
  * Gets the published API reference and keeps only the data that the parity check
  * uses: each endpoint, its HTTP methods, and its query parameters. For a parameter
- * with fixed values, it keeps the values.
+ * with fixed values, it keeps the values. For a parameter with a default value, it
+ * keeps the default. The demo reads the defaults from the snapshot (utils/apiDefaults.ts).
  */
 const fetchReference = async () => {
   const response = await fetch(REFERENCE_URL, {
@@ -104,7 +107,11 @@ const fetchReference = async () => {
       for (const parameter of (item[method].parameters ?? []).map(resolve)) {
         if (parameter.in !== "query") continue;
         const values = parameter.schema?.enum ?? parameter.enum;
-        parameters[parameter.name] = values ? { values: values.map(String) } : {};
+        const defaultValue = parameter.schema?.default;
+        parameters[parameter.name] = {
+          ...(values ? { values: values.map(String) } : {}),
+          ...(defaultValue === undefined ? {} : { default: String(defaultValue) }),
+        };
       }
     }
     endpoints[path] = { methods, parameters };
@@ -144,7 +151,11 @@ const referenceDifferences = (snapshot, published) => {
       const is = after.parameters[name];
       if (!was) differences.push(`${path} has the new parameter "${name}"`);
       else if (!is) differences.push(`${path} no longer has the parameter "${name}"`);
-      else if ((was.values ?? []).join() !== (is.values ?? []).join()) {
+      else if (was.default !== is.default) {
+        differences.push(
+          `${path}: the default of "${name}" changed to ${is.default === undefined ? "no default" : `"${is.default}"`}`,
+        );
+      } else if ((was.values ?? []).join() !== (is.values ?? []).join()) {
         differences.push(
           `${path}: the values of "${name}" changed to ${(is.values ?? []).join(", ") || "any value"}`,
         );
@@ -348,7 +359,13 @@ const checkPage = async (path, entry) => {
   }
   for (const { name, sample, expect = sample } of params) {
     const sent = request.searchParams.get(name);
-    if (sent !== expect) {
+    //The demo does not send a value that is the default of the API
+    const isDefault = reference.endpoints[path].parameters[name]?.default === expect;
+    if (isDefault && sent !== null) {
+      problems.push(
+        `"${name}" is "${sent}" in the API request, but it is the default of the API and must be absent`,
+      );
+    } else if (!isDefault && sent !== expect) {
       problems.push(
         `"${name}" is ${sent === null ? "absent" : `"${sent}"`} in the API request, not "${expect}"`,
       );

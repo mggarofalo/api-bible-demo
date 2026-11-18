@@ -26,8 +26,12 @@
         "get"
       ],
       "parameters": {
-        "include-chapters": {},
-        "include-chapters-and-sections": {}
+        "include-chapters": {
+          "default": "false"
+        },
+        "include-chapters-and-sections": {
+          "default": "false"
+        }
       }
     },
     "/audio-bibles/{bibleId}/books/{bookId}": {
@@ -35,7 +39,9 @@
         "get"
       ],
       "parameters": {
-        "include-chapters": {}
+        "include-chapters": {
+          "default": "false"
+        }
       }
     },
     "/audio-bibles/{bibleId}/books/{bookId}/chapters": {
@@ -59,7 +65,9 @@
         "abbreviation": {},
         "name": {},
         "ids": {},
-        "include-full-details": {}
+        "include-full-details": {
+          "default": "false"
+        }
       }
     },
     "/bibles/{bibleId}": {
@@ -73,8 +81,12 @@
         "get"
       ],
       "parameters": {
-        "include-chapters": {},
-        "include-chapters-and-sections": {}
+        "include-chapters": {
+          "default": "false"
+        },
+        "include-chapters-and-sections": {
+          "default": "false"
+        }
       }
     },
     "/bibles/{bibleId}/books/{bookId}": {
@@ -82,7 +94,9 @@
         "get"
       ],
       "parameters": {
-        "include-chapters": {}
+        "include-chapters": {
+          "default": "false"
+        }
       }
     },
     "/bibles/{bibleId}/books/{bookId}/chapters": {
@@ -107,13 +121,24 @@
             "html",
             "json",
             "text"
-          ]
+          ],
+          "default": "html"
         },
-        "include-notes": {},
-        "include-titles": {},
-        "include-chapter-numbers": {},
-        "include-verse-numbers": {},
-        "include-verse-spans": {},
+        "include-notes": {
+          "default": "false"
+        },
+        "include-titles": {
+          "default": "true"
+        },
+        "include-chapter-numbers": {
+          "default": "false"
+        },
+        "include-verse-numbers": {
+          "default": "true"
+        },
+        "include-verse-spans": {
+          "default": "false"
+        },
         "parallels": {}
       }
     },
@@ -139,15 +164,28 @@
             "html",
             "json",
             "text"
-          ]
+          ],
+          "default": "html"
         },
-        "include-notes": {},
-        "include-titles": {},
-        "include-chapter-numbers": {},
-        "include-verse-numbers": {},
-        "include-verse-spans": {},
+        "include-notes": {
+          "default": "false"
+        },
+        "include-titles": {
+          "default": "true"
+        },
+        "include-chapter-numbers": {
+          "default": "false"
+        },
+        "include-verse-numbers": {
+          "default": "true"
+        },
+        "include-verse-spans": {
+          "default": "false"
+        },
         "parallels": {},
-        "use-org-id": {}
+        "use-org-id": {
+          "default": "false"
+        }
       }
     },
     "/bibles/{bibleId}/search": {
@@ -156,14 +194,19 @@
       ],
       "parameters": {
         "query": {},
-        "limit": {},
-        "offset": {},
+        "limit": {
+          "default": "10"
+        },
+        "offset": {
+          "default": "0"
+        },
         "sort": {
           "values": [
             "relevance",
             "canonical",
             "reverse-canonical"
-          ]
+          ],
+          "default": "relevance"
         },
         "range": {},
         "fuzziness": {
@@ -186,13 +229,24 @@
             "html",
             "json",
             "text"
-          ]
+          ],
+          "default": "html"
         },
-        "include-notes": {},
-        "include-titles": {},
-        "include-chapter-numbers": {},
-        "include-verse-numbers": {},
-        "include-verse-spans": {},
+        "include-notes": {
+          "default": "false"
+        },
+        "include-titles": {
+          "default": "true"
+        },
+        "include-chapter-numbers": {
+          "default": "false"
+        },
+        "include-verse-numbers": {
+          "default": "true"
+        },
+        "include-verse-spans": {
+          "default": "false"
+        },
         "parallels": {}
       }
     },
@@ -206,15 +260,28 @@
             "html",
             "json",
             "text"
-          ]
+          ],
+          "default": "html"
         },
-        "include-notes": {},
-        "include-titles": {},
-        "include-chapter-numbers": {},
-        "include-verse-numbers": {},
-        "include-verse-spans": {},
+        "include-notes": {
+          "default": "false"
+        },
+        "include-titles": {
+          "default": "true"
+        },
+        "include-chapter-numbers": {
+          "default": "false"
+        },
+        "include-verse-numbers": {
+          "default": "true"
+        },
+        "include-verse-spans": {
+          "default": "false"
+        },
         "parallels": {},
-        "use-org-id": {}
+        "use-org-id": {
+          "default": "false"
+        }
       }
     }
   }
