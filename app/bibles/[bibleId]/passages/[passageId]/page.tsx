@@ -1,17 +1,23 @@
+import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
+import { JSONSection } from "@/components/sections/JSONSection";
+import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
 import { VerseContentSection } from "@/components/sections/VerseContentSection";
-import { client } from "@/utils/api";
+import { client, traced } from "@/utils/api";
 import { getDemoBible } from "@/utils/getDemoBible";
-import { BookText } from "lucide-react";
-import Link from "next/link";
+import {
+  contentOptions,
+  contentParams,
+  PageSearchParams,
+  readParams,
+} from "@/utils/queryParams";
 import { notFound } from "next/navigation";
-
-export const dynamic = "force-static";
 
 type PassagePageProps = {
   params: Promise<{ bibleId: string; passageId: string }>;
+  searchParams: Promise<PageSearchParams>;
 };
 
 /**
@@ -21,14 +27,22 @@ type PassagePageProps = {
  */
 export default async function PassagePage(props: PassagePageProps) {
   const { bibleId, passageId } = await props.params;
+  //Read the query parameters that the user selected on the page
+  const queryParams = readParams(
+    contentParams(),
+    await props.searchParams,
+  );
 
-  //Get this bible from the demo bibles, fetched once from the `/bibles` endpoint
+  //Get this bible from the list of bibles, fetched once from the `/bibles` endpoint
   const bible = await getDemoBible(bibleId);
   //Fetch a single passage from the `/bibles/{bibleId}/passages/{passageId}` endpoint
-  const { data: passage } = await client.passages.get(bibleId, passageId, {
-    contentType: "html",
-    includeVerseSpans: true,
-  });
+  const {
+    data: passage,
+    exchange,
+    body,
+  } = await traced(() =>
+    client.passages.get(bibleId, passageId, contentOptions(queryParams)),
+  );
 
   if (!passage) {
     notFound();
@@ -36,77 +50,43 @@ export default async function PassagePage(props: PassagePageProps) {
 
   return (
     <Page>
-      <HeaderSection
-        bible={bible}
-        breadcrumbs={[
-          {
-            title: "Home",
-            href: "/",
-          },
-          {
-            title: "Bibles",
-            href: "/bibles",
-          },
-          {
-            title: bible.name,
-            href: `/bibles/${bibleId}`,
-          },
-          {
-            title: "Passages",
-            href: `/bibles/${bibleId}/passages`,
-          },
-          {
-            title: passage.reference!,
-            href: `/bibles/${bibleId}/passages/${passage.id}`,
-          },
-        ]}
-        actionItems={[
-          {
-            title: "Find Another Passage",
-            href: `/bibles/${bibleId}/passages`,
-            children: <BookText size={16} />,
-          },
-        ]}
-      />
+      <HeaderSection bible={bible} />
       <InfoSection
-        title="Fetching a Passage"
+        title="How to Get a Passage"
         url="https://rest.api.bible/v1/bibles/{bibleId}/passages/{passageId}"
         info={
           <>
-            <p className="mb-2">
-              To fetch a passage in Bible, you must send a GET request to the
-              above API endpoint using the appropriate <b>Bible ID</b> and
-              <b>Passage ID</b> you would like to fetch. For more information,
-              check out our{" "}
-              <Link
-                href="https://docs.api.bible/guides/passages"
-                className="underline"
-              >
-                Passages Guide.
-              </Link>{" "}
-              While a <b>Passage ID</b> can span both chapters and books, the
-              API will only return the <i>first 200 verses of the result</i>. In
-              this instance, the truncated result will be reflectd in the{" "}
-              <code className="font-bold">id</code> field, which will show the
-              verse range actually returned. This means that large passages may
-              need to be broken up into smaller chunks to successfully fetch
-              them in their entirety from the API.
-            </p>
-            <p className="text-sm">
-              Tip: This endpoint will also return verse content within the{" "}
-              <code className="font-bold">content</code> field. Verse content
-              can be configured based on the given input parameters, see our{" "}
-              <Link
-                href="https://docs.api.bible/guides/verses#verse-content"
-                className="underline"
-              >
+            <Lead>
+              To get a passage of a Bible, send a <Code>GET</Code> request to
+              this API endpoint. Put the <b>Bible ID</b> and the{" "}
+              <b>Passage ID</b> in the URL. For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/passages">
+                Passages Guide
+              </Guide>
+              .
+            </Lead>
+            <Lead>
+              A <b>Passage ID</b> can include more than one chapter or book.
+              But the API gives only <i>the first 200 verses of the passage</i>
+              . In that condition, the <Code>id</Code> field of the response
+              shows the range of verses that the API gave. To get a large
+              passage, divide it into smaller passages.
+            </Lead>
+            <Note>
+              The response also contains the text of the verses, in the{" "}
+              <Code>content</Code> field. The query parameters control the
+              format of this text. For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/verses#verse-content">
                 Verse Content Guide
-              </Link>{" "}
-              for more.
-            </p>
+              </Guide>
+              .
+            </Note>
           </>
         }
       />
+
+      <QueryParamsSection params={queryParams} />
+      <JSONSection json={body} exchange={exchange} />
 
       <VerseContentSection
         title={passage.id}

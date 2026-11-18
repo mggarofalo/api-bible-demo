@@ -2,7 +2,7 @@ import { SearchResultsPage } from "../_components/SearchResultsPage";
 
 type SearchPageProps = {
   params: Promise<{ bibleId: string }>;
-  searchParams: Promise<{ page: string }>;
+  searchParams: Promise<{ page?: string }>;
 };
 
 /**
@@ -20,6 +20,7 @@ export default async function NameSearchPage({
   return SearchResultsPage({
     bibleId,
     page: Number(page ?? 0),
+    searchParams: await searchParams,
     searchValue: "Aaron",
     searchLink: "name",
   });

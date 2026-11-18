@@ -1,9 +1,10 @@
+import { Code, Guide, Lead, Note } from "@/components/InfoText";
+import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
+import { JSONSection } from "@/components/sections/JSONSection";
 import { ListSection } from "@/components/sections/ListSection";
-import Link from "next/link";
-import { Page } from "@/components/Page";
-import { client } from "@/utils/api";
+import { client, traced } from "@/utils/api";
 import { getDemoBible } from "@/utils/getDemoBible";
 
 export const dynamic = "force-static";
@@ -22,79 +23,48 @@ export default async function BookSectionsListPage(
 ) {
   const { bibleId, bookId } = await props.params;
 
-  //Get this bible from the demo bibles, fetched once from the `/bibles` endpoint
+  //Get this bible from the list of bibles, fetched once from the `/bibles` endpoint
   const bible = await getDemoBible(bibleId);
-  //Fetch a single book from the `/bibles/{bibleId}/books/{bookId}` endpoint
-  const { data: book } = await client.books.get(bibleId, bookId);
   //Fetch full list of sections for the given book from the `/bibles/{bibleId}/books/{bookId}/sections` endpoint
-  const { data: sections } = await client.sections.listForBook(bibleId, bookId);
+  const {
+    data: sections,
+    exchange,
+    body,
+  } = await traced(() => client.sections.listForBook(bibleId, bookId));
 
   return (
     <Page>
-      <HeaderSection
-        bible={bible}
-        breadcrumbs={[
-          {
-            title: "Home",
-            href: "/",
-          },
-          {
-            title: "Bibles",
-            href: "/bibles",
-          },
-          {
-            title: bible.name,
-            href: `/bibles/${bibleId}`,
-          },
-          {
-            title: "Books",
-            href: `/bibles/${bibleId}/books`,
-          },
-          {
-            title: book.name,
-            href: `/bibles/${bibleId}/books/${bookId}`,
-          },
-
-          {
-            title: "Sections",
-            href: `/bibles/${bibleId}/books/${bookId}/sections`,
-          },
-        ]}
-      />
+      <HeaderSection bible={bible} />
       <InfoSection
-        title="Fetching Sections in a Book"
+        title="How to Get the Sections of a Book"
         url="https://rest.api.bible/v1/bibles/{bibleId}/books/{bookId}/sections"
         info={
           <>
-            <p className="mb-2">
-              To fetch a list of sections for a book of the Bible, you must send
-              a <code className="font-bold">GET</code> request to the above API
-              endpoint using the <b>Bible ID</b> and <b>Book ID</b> you would
-              like to fetch. For more information, check out our{" "}
-              <Link
-                href="https://docs.api.bible/guides/sections"
-                className="underline"
-              >
-                Sections Guide.
-              </Link>
-            </p>
-            <p className="text-sm">
-              Tip: Not every Bible has sections available. You can use the{" "}
-              <code className="font-bold">/books</code> endpoint to check for
-              section data using the{" "}
-              <code className="font-bold">include-chapters-and-sections</code>{" "}
-              query parameter. For more, see our guide on{" "}
-              <Link
-                href="https://docs.api.bible/guides/books#fetching-a-list-of-books-for-a-bible"
-                className="underline"
-              >
-                Fetching a List of Books for a Bible
-              </Link>
+            <Lead>
+              To get the list of sections of a book, send a <Code>GET</Code>{" "}
+              request to this API endpoint. Put the <b>Bible ID</b> and the{" "}
+              <b>Book ID</b> in the URL. For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/sections">
+                Sections Guide
+              </Guide>
               .
-            </p>
+            </Lead>
+            <Note>
+              Some Bibles do not have sections. To find if a book has sections,
+              use the <Code>/books</Code> endpoint with the{" "}
+              <Code>include-chapters-and-sections</Code> query parameter. For
+              more information, refer to{" "}
+              <Guide href="https://docs.api.bible/guides/books#fetching-a-list-of-books-for-a-bible">
+                the list of books of a Bible
+              </Guide>
+              .
+            </Note>
           </>
         }
       />
+
+      <JSONSection json={body} exchange={exchange} />
+
       <ListSection
         items={sections.map((section) => ({
           title: (

@@ -1,9 +1,9 @@
-import { HeaderSection } from "@/components/sections/HeaderSection";
-import { Search } from "lucide-react";
-import { InfoSection } from "@/components/sections/InfoSection";
-import Link from "next/link";
+import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
+import { HeaderSection } from "@/components/sections/HeaderSection";
+import { InfoSection } from "@/components/sections/InfoSection";
 import { getDemoBible } from "@/utils/getDemoBible";
+import { Search } from "lucide-react";
 
 export const dynamic = "force-static";
 
@@ -21,7 +21,7 @@ type SearchPageProps = {
 export default async function SearchPage(props: SearchPageProps) {
   const { bibleId } = await props.params;
 
-  //Get this bible from the demo bibles, fetched once from the `/bibles` endpoint
+  //Get this bible from the list of bibles, fetched once from the `/bibles` endpoint
   const bible = await getDemoBible(bibleId);
 
   const values = [
@@ -35,24 +35,6 @@ export default async function SearchPage(props: SearchPageProps) {
     <Page>
       <HeaderSection
         bible={bible}
-        breadcrumbs={[
-          {
-            title: "Home",
-            href: "/",
-          },
-          {
-            title: "Bibles",
-            href: "/bibles",
-          },
-          {
-            title: bible.name,
-            href: `/bibles/${bibleId}`,
-          },
-          {
-            title: "Search",
-            href: `/bibles/${bibleId}/search`,
-          },
-        ]}
         actionItems={values.map(([value, href]) => ({
           title: `Search "${value}"`,
           href: `/bibles/${bibleId}/search/${href}`,
@@ -61,36 +43,30 @@ export default async function SearchPage(props: SearchPageProps) {
       />
 
       <InfoSection
-        title="How To Search"
+        title="How to Search"
         info={
           <>
-            <p className="mb-2">
-              A search will attempt to match all verses with the list of
-              keywords provided in the query string. You may include either a
-              verse range (i.e. {'"John 3:16-19"'}) a keyword (i.e. {'"love"'}),
-              or a comma-separated list of keywords (i.e. {'"love,world"'}). The
-              order of the keywords does not matter, however{" "}
-              <i>
-                all listed keywords must be present in a verse for it to be
-                considered a match
-              </i>
-              . If a verse range is provided instead of search keywords, the
-              resulting <b>passage</b> will be returned instead. For more
-              information, check out our{" "}
-              <Link
-                href="https://docs.api.bible/guides/search"
-                className="underline"
-              >
+            <Lead>
+              A search finds the verses that contain all the keywords in the
+              query. The query can be a verse range (for example,{" "}
+              {'"John 3:16-19"'}) or one keyword (for example, {'"love"'}). It
+              can also be a list of keywords with commas between them (for
+              example, {'"love,world"'}).
+            </Lead>
+            <Lead>
+              The sequence of the keywords is not important. But{" "}
+              <i>a verse is a result only if it contains all the keywords</i>.
+              If the query is a verse range, the API gives the <b>passage</b>.
+              For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/search">
                 Search Guide
-              </Link>
+              </Guide>
               .
-            </p>
-            <p className="text-sm">
-              Tip: Wildcard searches are supported using{" "}
-              <code className="font-bold">*</code> (match any number of
-              characters) or <code className="font-bold">?</code> (match one
-              character).
-            </p>
+            </Lead>
+            <Note>
+              You can use wildcard characters. <Code>*</Code> is for zero or
+              more characters. <Code>?</Code> is for one character.
+            </Note>
           </>
         }
       />

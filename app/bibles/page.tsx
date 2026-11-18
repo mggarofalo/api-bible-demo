@@ -1,24 +1,25 @@
+import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
-import { ListSection } from "@/components/sections/ListSection";
-import { client } from "@/utils/api";
-import { demoBibles } from "@/utils/demoBibles";
-import Link from "next/link";
+import { JSONSection } from "@/components/sections/JSONSection";
+import { FilterableListSection } from "@/components/sections/FilterableListSection";
+import { client, traced } from "@/utils/api";
 
 export const dynamic = "force-static";
 
 /**
- * Bibles page of the application. Provides the list of Bibles this application has access to.
- * The full list of demo bibles can  be found in [demoBibles.ts](../utils/demoBibles.ts).
+ * Bibles page of the application. Shows the list of Bibles that this application can access.
  *
  * See our [Bibles Guide](https://docs.api.bible/guides/bibles) for more.
  */
 export default async function BiblesPage() {
   //Fetch bibles from the `/bibles` endpoint
-  const { data: bibles } = await client.bibles.list({
-    ids: demoBibles.map(({ id }) => id),
-  });
+  const {
+    data: bibles,
+    exchange,
+    body,
+  } = await traced(() => client.bibles.list());
 
   return (
     <Page>
@@ -36,40 +37,41 @@ export default async function BiblesPage() {
         ]}
       />
       <InfoSection
-        title="Fetching Your Available Bibles"
+        title="How to Get Your Bibles"
         url="https://rest.api.bible/v1/bibles"
         info={
           <>
-            <p className="mb-2">
-              To fetch your list of available Bibles, you must send a{" "}
-              <code className="font-bold">GET</code> request to the above API
-              endpoint. This will return a list of every Bible you have access
-              to via API.Bible. This includes all Public Domain and Creative
-              Commons versions, as well as any Bibles licensed through a{" "}
-              <b>Pro Plan</b> subscription. For more information, check out our{" "}
-              <Link
-                href="https://docs.api.bible/guides/bibles"
-                className="underline"
-              >
-                Bibles Guide.
-              </Link>
-            </p>
-            <p className="text-sm">
-              Tip: Bible availability via API.Bible depends on your chosen plan.
-              The <b>Starter Plan</b> provides access to Public Domain and
-              Creative Commons versions, while the <b>Pro Plan</b> may include
-              additional licensed translations. See our{" "}
-              <Link href="https://api.bible/bibles" className="underline">
-                Bible Versions Table.
-              </Link>{" "}
-              for more information.
-            </p>
+            <Lead>
+              To get the list of your Bibles, send a <Code>GET</Code> request to
+              this API endpoint. The response contains all the Bibles that your
+              API key can access. This includes Public Domain and Creative
+              Commons versions, and Bibles with a license from a{" "}
+              <b>Pro Plan</b>. For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/bibles">
+                Bibles Guide
+              </Guide>
+              .
+            </Lead>
+            <Note>
+              Your plan controls the Bibles that you can access. The{" "}
+              <b>Starter Plan</b> gives access to Public Domain and Creative
+              Commons versions. The <b>Pro Plan</b> can include more
+              translations that have a license. For more information, refer to
+              the{" "}
+              <Guide href="https://api.bible/bibles">
+                Bible Versions Table
+              </Guide>
+              .
+            </Note>
           </>
         }
       />
 
-      <ListSection
+      <JSONSection json={body} exchange={exchange} />
+
+      <FilterableListSection
         title="Bibles"
+        filterLabel="Filter by name, abbreviation, language or ID"
         items={bibles.map((bible) => ({
           title: (
             <p>
@@ -79,6 +81,7 @@ export default async function BiblesPage() {
           ),
           href: `/bibles/${bible.id}`,
           info: bible.id,
+          filterText: `${bible.name} ${bible.nameLocal ?? ""} ${bible.abbreviation ?? ""} ${bible.language?.name ?? ""} ${bible.id}`,
         }))}
       />
     </Page>

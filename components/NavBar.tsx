@@ -25,21 +25,21 @@ export const Navbar = () => {
 
         <div className="hidden md:flex gap-2 sm:justify-center md:justify-end items-center">
           <LinkButton
-            title="View Source Code"
+            title="Source Code"
             href="https://github.com/americanbible/api-bible-demo"
             className="text-sm border-[1px]"
             external
           />
 
           <LinkButton
-            title="View Docs"
+            title="Documentation"
             href="https://docs.api.bible"
             className="text-sm border-[1px]"
             external
           />
 
           <LinkButton
-            title="Visit API.Bible"
+            title="API.Bible Website"
             href="https://api.bible"
             className="text-sm border-[1px]"
             external
@@ -49,21 +49,21 @@ export const Navbar = () => {
           <MobileNavbar>
             <div className="w-full p-4 flex flex-col sm:flex-row sm:justify-center gap-2">
               <LinkButton
-                title="View Source Code"
+                title="Source Code"
                 href="https://github.com/americanbible/api-bible-demo"
                 className="text-sm border-[1px]"
                 external
               />
 
               <LinkButton
-                title="View Docs"
+                title="Documentation"
                 href="https://docs.api.bible"
                 className="text-sm border-[1px]"
                 external
               />
 
               <LinkButton
-                title="Visit API.Bible"
+                title="API.Bible Website"
                 href="https://api.bible"
                 className="text-sm border-[1px]"
                 external

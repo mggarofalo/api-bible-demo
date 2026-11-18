@@ -20,7 +20,7 @@ export const ListItem = ({ title, href, info }: ListItemProps) => {
       <div className="w-full flex flex-col items-center sm:items-start text-center sm:text-left">
         {title}
         <p className="text-sm text-zinc-500 group-hover:text-zinc-200">
-          {!!info ? info : "Click to view"}
+          {!!info ? info : "Click to open"}
         </p>
       </div>
     </Link>

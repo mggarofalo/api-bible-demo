@@ -1,17 +1,25 @@
-import { HeaderSection } from "@/components/sections/HeaderSection";
-import { VerseContentSection } from "@/components/sections/VerseContentSection";
-import { BookText, TextInitial } from "lucide-react";
-import Link from "next/link";
-import { InfoSection } from "@/components/sections/InfoSection";
+import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
-import { client } from "@/utils/api";
-import { getDemoBible } from "@/utils/getDemoBible";
+import { HeaderSection } from "@/components/sections/HeaderSection";
+import { InfoSection } from "@/components/sections/InfoSection";
+import { JSONSection } from "@/components/sections/JSONSection";
+import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
+import { VerseContentSection } from "@/components/sections/VerseContentSection";
+import { client, traced } from "@/utils/api";
 import { hasSections } from "@/utils/demoBibles";
-
-export const dynamic = "force-static";
+import { getDemoBible } from "@/utils/getDemoBible";
+import {
+  contentOptions,
+  contentParams,
+  PageSearchParams,
+  readParams,
+  toQueryString,
+} from "@/utils/queryParams";
+import { BookText, TextInitial } from "lucide-react";
 
 type ChapterPageProps = {
   params: Promise<{ bibleId: string; chapterId: string }>;
+  searchParams: Promise<PageSearchParams>;
 };
 
 /**
@@ -21,45 +29,30 @@ type ChapterPageProps = {
  */
 export default async function ChapterPage(props: ChapterPageProps) {
   const { bibleId, chapterId } = await props.params;
+  //Read the query parameters that the user selected on the page
+  const queryParams = readParams(
+    contentParams({ "include-notes": "true" }),
+    await props.searchParams,
+  );
 
-  //Get this bible from the demo bibles, fetched once from the `/bibles` endpoint
+  //Get this bible from the list of bibles, fetched once from the `/bibles` endpoint
   const bible = await getDemoBible(bibleId);
   //Fetch a single chapter from the `/bibles/{bibleId}/chapters/{chapterId}` endpoint
-  const { data: chapter } = await client.chapters.get(bibleId, chapterId, {
-    contentType: "html",
-    includeVerseSpans: true,
-    includeTitles: true,
-    includeNotes: true,
-  });
+  const {
+    data: chapter,
+    exchange,
+    body,
+  } = await traced(() =>
+    client.chapters.get(bibleId, chapterId, contentOptions(queryParams)),
+  );
 
   return (
     <Page>
       <HeaderSection
         bible={bible}
-        breadcrumbs={[
-          {
-            title: "Home",
-            href: "/",
-          },
-          {
-            title: "Bibles",
-            href: "/bibles",
-          },
-          {
-            title: bible.name,
-            href: `/bibles/${bibleId}`,
-          },
-          {
-            title: "Chapters",
-          },
-          {
-            title: chapter.reference!,
-            href: `/bibles/${bibleId}/chapters/${chapter.id}`,
-          },
-        ]}
         actionItems={[
           {
-            title: "View Verses",
+            title: "Show the Verses",
             href: `/bibles/${bibleId}/chapters/${chapterId}/verses`,
             children: <TextInitial size={16} />,
           },
@@ -67,7 +60,7 @@ export default async function ChapterPage(props: ChapterPageProps) {
           ...(hasSections(bibleId)
             ? [
                 {
-                  title: "View Sections",
+                  title: "Show the Sections",
                   href: `/bibles/${bibleId}/chapters/${chapterId}/sections`,
                   children: <BookText size={16} />,
                 },
@@ -77,42 +70,39 @@ export default async function ChapterPage(props: ChapterPageProps) {
       />
 
       <InfoSection
-        title="Fetching a Single Chapter"
+        title="How to Get One Chapter"
         url="https://rest.api.bible/v1/bibles/{bibleId}/chapters/{chapterId}"
         info={
           <>
-            <p className="mb-2">
-              To fetch information for a single chapter, you must send a{" "}
-              <code className="font-bold">GET</code> request to the above API
-              endpoint using the <b>Bible ID</b> and <b>Chapter ID</b> you would
-              like to fetch. For more information, check out our{" "}
-              <Link
-                href="https://docs.api.bible/guides/chapters"
-                className="underline"
-              >
-                Chapters Guide.
-              </Link>
-            </p>
-            <p className="text-sm">
-              Tip: In addition to information about the given chapter, this
-              endpoint will also return all verse content included in that
-              chapter within the <code className="font-bold">content</code>{" "}
-              field. Verse content will be configured based on the given input
-              parameters, see our{" "}
-              <Link
-                href="https://docs.api.bible/guides/verses#verse-content"
-                className="underline"
-              >
+            <Lead>
+              To get one chapter, send a <Code>GET</Code> request to this API
+              endpoint. Put the <b>Bible ID</b> and the <b>Chapter ID</b> in the
+              URL. For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/chapters">
+                Chapters Guide
+              </Guide>
+              .
+            </Lead>
+            <Note>
+              The response also contains the text of all the verses in the
+              chapter, in the <Code>content</Code> field. The query parameters
+              control the format of this text. For more information, refer to
+              the{" "}
+              <Guide href="https://docs.api.bible/guides/verses#verse-content">
                 Verse Content Guide
-              </Link>{" "}
-              for more.
-            </p>
+              </Guide>
+              .
+            </Note>
           </>
         }
       />
 
+      <QueryParamsSection params={queryParams} />
+      <JSONSection json={body} exchange={exchange} />
+
       <VerseContentSection
         linkBase={`/bibles/${bibleId}/chapters`}
+        query={toQueryString(queryParams)}
         verseContent={chapter}
         title={chapter.id}
       />

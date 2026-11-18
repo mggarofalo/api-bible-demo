@@ -1,17 +1,18 @@
-import { HeaderSection } from "@/components/sections/HeaderSection";
-import { Book as BookIcon, BookText } from "lucide-react";
-import { InfoSection } from "@/components/sections/InfoSection";
-import Link from "next/link";
-import { JSONSection } from "@/components/sections/JSONSection";
+import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
-import { client } from "@/utils/api";
-import { getDemoBible } from "@/utils/getDemoBible";
+import { HeaderSection } from "@/components/sections/HeaderSection";
+import { InfoSection } from "@/components/sections/InfoSection";
+import { JSONSection } from "@/components/sections/JSONSection";
+import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
+import { client, traced } from "@/utils/api";
 import { hasSections } from "@/utils/demoBibles";
-
-export const dynamic = "force-static";
+import { getDemoBible } from "@/utils/getDemoBible";
+import { PageSearchParams, paramFlag, readParams } from "@/utils/queryParams";
+import { Book as BookIcon, BookText } from "lucide-react";
 
 type BookPageProps = {
   params: Promise<{ bibleId: string; bookId: string }>;
+  searchParams: Promise<PageSearchParams>;
 };
 
 /**
@@ -21,43 +22,38 @@ type BookPageProps = {
  */
 export default async function BookPage(props: BookPageProps) {
   const { bibleId, bookId } = await props.params;
+  //Read the query parameters that the user selected on the page
+  const queryParams = readParams(
+    [
+      {
+        name: "include-chapters",
+        options: ["true", "false"],
+        defaultValue: "true",
+      },
+    ],
+    await props.searchParams,
+  );
 
-  //Get this bible from the demo bibles, fetched once from the `/bibles` endpoint
+  //Get this bible from the list of bibles, fetched once from the `/bibles` endpoint
   const bible = await getDemoBible(bibleId);
   //Fetch a single book from the `/bibles/{bibleId}/books/{bookId}` endpoint
-  const { data: book } = await client.books.get(bibleId, bookId, {
-    includeChapters: true,
-  });
+  const {
+    data: book,
+    exchange,
+    body,
+  } = await traced(() =>
+    client.books.get(bibleId, bookId, {
+      includeChapters: paramFlag(queryParams, "include-chapters"),
+    }),
+  );
 
   return (
     <Page>
       <HeaderSection
         bible={bible}
-        breadcrumbs={[
-          {
-            title: "Home",
-            href: "/",
-          },
-          {
-            title: "Bibles",
-            href: "/bibles",
-          },
-          {
-            title: bible.name,
-            href: `/bibles/${bibleId}`,
-          },
-          {
-            title: "Books",
-            href: `/bibles/${bibleId}/books`,
-          },
-          {
-            title: book.name,
-            href: `/bibles/${bibleId}/books/${bookId}`,
-          },
-        ]}
         actionItems={[
           {
-            title: "View Chapters",
+            title: "Show the Chapters",
             href: `/bibles/${bibleId}/books/${bookId}/chapters`,
             children: <BookIcon size={16} />,
           },
@@ -65,7 +61,7 @@ export default async function BookPage(props: BookPageProps) {
           ...(hasSections(bibleId)
             ? [
                 {
-                  title: "View Sections",
+                  title: "Show the Sections",
                   href: `/bibles/${bibleId}/books/${bookId}/sections`,
                   children: <BookText size={16} />,
                 },
@@ -74,40 +70,43 @@ export default async function BookPage(props: BookPageProps) {
         ]}
       />
       <InfoSection
-        title="Fetching a Single Book"
+        title="How to Get One Book"
         url="https://rest.api.bible/v1/bibles/{bibleId}/books/{bookId}"
         info={
           <>
-            <p className="mb-2">
-              To fetch a single book for a Bible, you must send a{" "}
-              <code className="font-bold">GET</code> request to the above API
-              endpoint using the <b>Bible ID</b> and <b>Book ID</b> you would
-              like to fetch. For more information, check out our{" "}
-              <Link
-                href="https://docs.api.bible/guides/books"
-                className="underline"
-              >
-                Books Guide.
-              </Link>
-            </p>
-            <p className="text-sm">
-              Tip: If you are having trouble finding the correct <b>Book ID</b>,
-              try{" "}
-              <Link
-                href="https://docs.api.bible/guides/books#fetching-a-list-of-books-for-a-bible"
-                className="underline"
-              >
-                fetching the books in this Bible
-              </Link>{" "}
-              first.
-            </p>
+            <Lead>
+              To get one book of a Bible, send a <Code>GET</Code> request to
+              this API endpoint. Put the <b>Bible ID</b> and the <b>Book ID</b>{" "}
+              in the URL. For more information, refer to the{" "}
+              <Guide href="https://docs.api.bible/guides/books">
+                Books Guide
+              </Guide>
+              .
+            </Lead>
+            <Note>
+              If you do not know the <b>Book ID</b>, first{" "}
+              <Guide href="https://docs.api.bible/guides/books#fetching-a-list-of-books-for-a-bible">
+                get the list of books of the Bible
+              </Guide>
+              .
+            </Note>
           </>
         }
       />
 
+      <QueryParamsSection params={queryParams} />
       <JSONSection
-        //Truncate chapter display to reduce page clutter
-        json={{ ...book, chapters: `Array(${book.chapters?.length})` }}
+        defaultOpen
+        exchange={exchange}
+        //Show only the number of chapters, to keep the page short
+        json={
+          book.chapters
+            ? {
+                ...body,
+                data: { ...book, chapters: `Array(${book.chapters.length})` },
+              }
+            : body
+        }
       />
     </Page>
   );

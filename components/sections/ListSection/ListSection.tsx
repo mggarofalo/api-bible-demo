@@ -29,7 +29,7 @@ export const ListSection = ({
       <div className="flex flex-col">
         {!items.length && (
           <div className="text-sm w-full p-4 border-b-[1px]">
-            No items available for this Bible.
+            This list has no items for this Bible.
           </div>
         )}
         {items.map((item) => (
