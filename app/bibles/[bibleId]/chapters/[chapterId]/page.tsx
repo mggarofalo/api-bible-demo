@@ -31,7 +31,7 @@ export default async function ChapterPage(props: ChapterPageProps) {
   const { bibleId, chapterId } = await props.params;
   //Read the query parameters that the user selected on the page
   const queryParams = readParams(
-    contentParams({ "include-notes": "true" }),
+    contentParams(),
     await props.searchParams,
   );
 

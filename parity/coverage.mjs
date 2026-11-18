@@ -36,7 +36,7 @@ const CONTENT = {
   "include-titles": { sample: "false" },
   "include-chapter-numbers": { sample: "true" },
   "include-verse-numbers": { sample: "false" },
-  "include-verse-spans": { sample: "false" },
+  "include-verse-spans": { sample: "true" },
   parallels: { sample: WEB },
 };
 
@@ -59,15 +59,14 @@ export const coverage = {
     sdk: "books.list",
     ids: { bibleId: SECTIONS },
     params: {
-      "include-chapters": { sample: "false" },
+      "include-chapters": { sample: "true" },
       "include-chapters-and-sections": { sample: "true" },
     },
   },
   "/bibles/{bibleId}/books/{bookId}": {
     sdk: "books.get",
     ids: { bibleId: KJV, bookId: "GEN" },
-    //The page asks for chapters by default, so the sample turns them off
-    params: { "include-chapters": { sample: "false" } },
+    params: { "include-chapters": { sample: "true" } },
   },
   "/bibles/{bibleId}/books/{bookId}/chapters": {
     sdk: "chapters.list",
@@ -81,11 +80,7 @@ export const coverage = {
   "/bibles/{bibleId}/chapters/{chapterId}": {
     sdk: "chapters.get",
     ids: { bibleId: KJV, chapterId: "GEN.1" },
-    params: {
-      ...CONTENT,
-      //The chapter page asks for notes by default, so the sample turns them off
-      "include-notes": { sample: "false" },
-    },
+    params: CONTENT,
   },
   "/bibles/{bibleId}/chapters/{chapterId}/verses": {
     sdk: "verses.list",

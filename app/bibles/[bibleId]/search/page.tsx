@@ -50,8 +50,9 @@ export default async function SearchPage(props: SearchPageProps) {
       },
       {
         name: "fuzziness",
-        options: ["AUTO", "0", "1", "2"],
-        defaultValue: "AUTO",
+        //The API reference gives no default, so the first option sends no value
+        options: ["", "AUTO", "0", "1", "2"],
+        defaultValue: "",
       },
       //Passage IDs that limit the search, with commas between them
       textParam("range", "gen-deu"),
@@ -77,7 +78,7 @@ export default async function SearchPage(props: SearchPageProps) {
           limit,
           offset: page * limit,
           sort: paramValue(queryParams, "sort") as SearchParams["sort"],
-          fuzziness: paramValue(
+          fuzziness: paramText(
             queryParams,
             "fuzziness",
           ) as SearchParams["fuzziness"],

@@ -26,7 +26,8 @@ type QueryParamsSectionProps = {
  *   - Other parameters are text boxes. Push Enter, or go out of the box, to apply the text.
  *
  * A control is blue when its parameter is in the API request, that is, when its value
- * is not the default of the API.
+ * is not the default of the API. The "Defaults" link sets all the parameters to their
+ * default values.
  *
  * When the user changes a value, the value goes into the URL of the page. The server
  * then sends the API request again with the new value, and the page shows the new
@@ -61,6 +62,23 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
     });
   };
 
+  //The "Defaults" link sets all the parameters of the page to their default values
+  const canReset = params.some((param) => param.value !== param.defaultValue);
+  const onReset = () => {
+    const query = new URLSearchParams(searchParams);
+    for (const { name } of params) {
+      query.delete(name);
+    }
+    query.delete("page");
+
+    const text = query.toString();
+    startTransition(() => {
+      router.replace(text ? `${pathname}?${text}` : pathname, {
+        scroll: false,
+      });
+    });
+  };
+
   //A control is blue when its parameter is in the API request. The request does not
   //contain a parameter that is empty, or that has the default value of the API.
   const apiDefaults = getApiDefaults(pathname);
@@ -77,6 +95,14 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
       <div className="grow min-w-0 px-4 py-3">
         <h6 className="flex items-center gap-2 mb-2 text-sm font-bold">
           Query Parameters
+          <button
+            type="button"
+            disabled={!canReset}
+            onClick={onReset}
+            className="font-normal underline cursor-pointer text-accent disabled:no-underline disabled:cursor-default disabled:text-zinc-400"
+          >
+            Defaults
+          </button>
           {pending && <Loader size={14} className="animate-spin" />}
         </h6>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
@@ -173,7 +199,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                     >
                       {param.options.map((option) => (
                         <option key={option} value={option}>
-                          {option}
+                          {option || "(not set)"}
                         </option>
                       ))}
                     </select>

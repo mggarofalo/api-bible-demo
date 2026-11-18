@@ -27,7 +27,7 @@ export default async function BooksListPage(props: BooksListPageProps) {
       {
         name: "include-chapters",
         options: ["true", "false"],
-        defaultValue: "true",
+        defaultValue: "false",
       },
       {
         name: "include-chapters-and-sections",

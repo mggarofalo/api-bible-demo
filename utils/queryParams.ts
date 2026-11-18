@@ -48,6 +48,9 @@ export const textParam = (
  * Query parameters of the endpoints that give verse text (chapters, verses, passages
  * and sections). See the [Verse Content Guide](https://docs.api.bible/guides/verses#verse-content).
  *
+ * The default values are the defaults of the API, so a page sends none of these
+ * parameters until the user changes one.
+ *
  * @param defaults  Default values that are different for a page
  * @param extra     Other parameters of the endpoint, shown before `parallels`
  */
@@ -61,7 +64,7 @@ export const contentParams = (
     { name: "include-titles", options: BOOLEAN, defaultValue: "true" },
     { name: "include-chapter-numbers", options: BOOLEAN, defaultValue: "false" },
     { name: "include-verse-numbers", options: BOOLEAN, defaultValue: "true" },
-    { name: "include-verse-spans", options: BOOLEAN, defaultValue: "true" },
+    { name: "include-verse-spans", options: BOOLEAN, defaultValue: "false" },
     ...extra,
     {
       name: "parallels",

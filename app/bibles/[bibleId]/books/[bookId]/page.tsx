@@ -28,7 +28,7 @@ export default async function BookPage(props: BookPageProps) {
       {
         name: "include-chapters",
         options: ["true", "false"],
-        defaultValue: "true",
+        defaultValue: "false",
       },
     ],
     await props.searchParams,
