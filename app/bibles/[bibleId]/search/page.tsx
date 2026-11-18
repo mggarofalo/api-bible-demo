@@ -104,6 +104,7 @@ export default async function SearchPage(props: SearchPageProps) {
       <InfoSection
         title="How to Search a Bible"
         url="https://rest.api.bible/v1/bibles/{bibleId}/search?query={query}"
+        requestUrl={search?.exchange?.request.url}
         info={
           <>
             <Lead>

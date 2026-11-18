@@ -72,6 +72,7 @@ export default async function ChapterPage(props: ChapterPageProps) {
       <InfoSection
         title="How to Get One Chapter"
         url="https://rest.api.bible/v1/bibles/{bibleId}/chapters/{chapterId}"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

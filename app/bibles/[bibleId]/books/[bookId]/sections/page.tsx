@@ -38,6 +38,7 @@ export default async function BookSectionsListPage(
       <InfoSection
         title="How to Get the Sections of a Book"
         url="https://rest.api.bible/v1/bibles/{bibleId}/books/{bookId}/sections"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

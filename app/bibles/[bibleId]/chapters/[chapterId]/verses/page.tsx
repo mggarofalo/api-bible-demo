@@ -36,6 +36,7 @@ export default async function VersesListPage(props: VersesListPageProps) {
       <InfoSection
         title="How to Get the Verses of a Chapter"
         url="https://rest.api.bible/v1/bibles/{bibleId}/chapters/{chapterId}/verses"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

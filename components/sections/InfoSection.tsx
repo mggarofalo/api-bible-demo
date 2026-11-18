@@ -7,7 +7,14 @@ import { ReactNode, useState } from "react";
 
 type InfoCardProps = {
   title: string;
+  /** URL of the endpoint, with placeholders such as `{bibleId}` */
   url?: string;
+  /**
+   * URL of the API request that the page made. When given, the card shows this URL and
+   * not `url`, so the URL agrees with the Bible, the reference and the query parameters
+   * that the user selected.
+   */
+  requestUrl?: string;
   info: ReactNode;
 };
 
@@ -19,7 +26,13 @@ type InfoCardProps = {
  * stylesheet hides the text of a collapsed card (see globals.css), so the text does
  * not show for a moment while the page loads.
  */
-export const InfoSection = ({ title, info, url }: InfoCardProps) => {
+export const InfoSection = ({
+  title,
+  info,
+  url: templateUrl,
+  requestUrl,
+}: InfoCardProps) => {
+  const url = requestUrl ?? templateUrl;
   const [collapsed, setCollapsed] = useStoredFlag(HELP_COLLAPSED_KEY);
   const [copied, setCopied] = useState(false);
 

@@ -55,6 +55,7 @@ export default async function VersePage(props: VersePageProps) {
       <InfoSection
         title="How to Get One Verse"
         url="https://rest.api.bible/v1/bibles/{bibleId}/verses/{verseId}"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

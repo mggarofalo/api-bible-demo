@@ -47,6 +47,7 @@ export default async function BiblePage(props: BiblePageProps) {
       <InfoSection
         title="How to Get the Data of One Bible"
         url="https://rest.api.bible/v1/bibles/{bibleId}"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

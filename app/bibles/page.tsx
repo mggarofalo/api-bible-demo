@@ -89,6 +89,7 @@ export default async function BiblesPage(props: BiblesPageProps) {
       <InfoSection
         title="How to Get Your Bibles"
         url="https://rest.api.bible/v1/bibles"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

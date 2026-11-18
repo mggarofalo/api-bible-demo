@@ -58,6 +58,7 @@ export default async function PassagePage(props: PassagePageProps) {
       <InfoSection
         title="How to Get a Passage"
         url="https://rest.api.bible/v1/bibles/{bibleId}/passages/{passageId}"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>

@@ -39,6 +39,7 @@ export default async function SectionsListPage(props: SectionsListPageProps) {
       <InfoSection
         title="How to Get the Sections of a Chapter"
         url="https://rest.api.bible/v1/bibles/{bibleId}/chapters/{chapterId}/sections"
+        requestUrl={exchange?.request.url}
         info={
           <>
             <Lead>
