@@ -4,22 +4,54 @@ import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
 import { JSONSection } from "@/components/sections/JSONSection";
 import { FilterableListSection } from "@/components/sections/FilterableListSection";
+import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
 import { client, traced } from "@/utils/api";
+import {
+  flagParam,
+  PageSearchParams,
+  paramFlag,
+  paramList,
+  paramText,
+  readParams,
+  textParam,
+} from "@/utils/queryParams";
 
-export const dynamic = "force-static";
+type BiblesPageProps = {
+  searchParams: Promise<PageSearchParams>;
+};
 
 /**
  * Bibles page of the application. Shows the list of Bibles that this application can access.
  *
  * See our [Bibles Guide](https://docs.api.bible/guides/bibles) for more.
  */
-export default async function BiblesPage() {
+export default async function BiblesPage(props: BiblesPageProps) {
+  //Read the query parameters that the user selected on the page
+  const queryParams = readParams(
+    [
+      textParam("language", "eng"),
+      textParam("abbreviation", "engKJV"),
+      textParam("name", "King James"),
+      textParam("ids", "de4e12af7f28f599-01"),
+      flagParam("include-full-details", "false"),
+    ],
+    await props.searchParams,
+  );
+
   //Fetch bibles from the `/bibles` endpoint
   const {
     data: bibles,
     exchange,
     body,
-  } = await traced(() => client.bibles.list());
+  } = await traced(() =>
+    client.bibles.list({
+      language: paramText(queryParams, "language"),
+      abbreviation: paramText(queryParams, "abbreviation"),
+      name: paramText(queryParams, "name"),
+      ids: paramList(queryParams, "ids"),
+      includeFullDetails: paramFlag(queryParams, "include-full-details"),
+    }),
+  );
 
   return (
     <Page>
@@ -67,6 +99,7 @@ export default async function BiblesPage() {
         }
       />
 
+      <QueryParamsSection params={queryParams} />
       <JSONSection json={body} exchange={exchange} />
 
       <FilterableListSection

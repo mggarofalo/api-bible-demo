@@ -50,7 +50,7 @@ export const BibleBreadcrumbs = ({ fallback }: BibleBreadcrumbsProps) => {
   //Pages that are not one book, chapter, verse or passage show their name at the end
   let name: string | undefined;
   if (area === "search") {
-    name = id ? `Search: ${decodeURIComponent(id)}` : "Search";
+    name = "Search";
   } else if (area === "sections" && id) {
     name = `Section ${decodeURIComponent(id)}`;
   } else {
@@ -97,13 +97,7 @@ export const EndpointPath = ({ fallback }: EndpointPathProps) => {
     return <p className="text-zinc-500">{fallback}</p>;
   }
 
-  const [area, id] = pathname.split("/").slice(3);
-  const base = `/bibles/${nav.bibleId}`;
-  let path = pathname;
-  if (area === "search") {
-    //All search pages of this application call the same endpoint
-    path = id ? `${base}/search` : base;
-  }
-
-  return <p className="font-mono text-sm text-zinc-500 break-all">{path}</p>;
+  return (
+    <p className="font-mono text-sm text-zinc-500 break-all">{pathname}</p>
+  );
 };

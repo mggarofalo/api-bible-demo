@@ -6,8 +6,10 @@ import type { ContentRenderingParams } from "@americanbible/api-bible-sdk";
 export type QueryParam = {
   /** Name of the query parameter in the API, for example `content-type` */
   name: string;
-  /** Values that the user can select */
+  /** Values that the user can select. An empty list means that the user types the value. */
   options: readonly string[];
+  /** Example value, shown in the text box of a parameter that the user types */
+  placeholder?: string;
   /** Value that the page uses when the page URL does not give one */
   defaultValue: string;
   /** Value in use now */
@@ -19,6 +21,20 @@ type ParamDefinition = Omit<QueryParam, "value">;
 export type PageSearchParams = Record<string, string | string[] | undefined>;
 
 const BOOLEAN = ["true", "false"] as const;
+//Longest value that a typed parameter can have
+const MAX_TEXT_LENGTH = 200;
+
+/** A true/false parameter, shown as a checkbox */
+export const flagParam = (
+  name: string,
+  defaultValue: "true" | "false",
+): ParamDefinition => ({ name, options: BOOLEAN, defaultValue });
+
+/** A parameter that the user types, shown as a text box */
+export const textParam = (
+  name: string,
+  placeholder: string,
+): ParamDefinition => ({ name, options: [], defaultValue: "", placeholder });
 
 /**
  * Query parameters of the endpoints that give verse text (chapters, verses, passages
@@ -36,6 +52,8 @@ export const contentParams = (
     { name: "include-chapter-numbers", options: BOOLEAN, defaultValue: "false" },
     { name: "include-verse-numbers", options: BOOLEAN, defaultValue: "true" },
     { name: "include-verse-spans", options: BOOLEAN, defaultValue: "true" },
+    //IDs of other Bibles, with commas between them. The response then includes the same content from those Bibles.
+    textParam("parallels", "9879dbb7cfe39e4d-01"),
   ].map((param) => ({
     ...param,
     defaultValue: defaults[param.name] ?? param.defaultValue,
@@ -52,6 +70,16 @@ export const readParams = (
   definitions.map((definition) => {
     const given = searchParams[definition.name];
     const value = Array.isArray(given) ? given[0] : given;
+
+    if (!definition.options.length) {
+      //A typed parameter can have any text
+      return {
+        ...definition,
+        value: (value ?? definition.defaultValue)
+          .trim()
+          .slice(0, MAX_TEXT_LENGTH),
+      };
+    }
 
     return {
       ...definition,
@@ -70,6 +98,19 @@ export const paramValue = (params: QueryParam[], name: string) =>
 export const paramFlag = (params: QueryParam[], name: string) =>
   paramValue(params, name) === "true";
 
+/** Value of one typed parameter. Returns `undefined` when it is empty, so the request omits it. */
+export const paramText = (params: QueryParam[], name: string) =>
+  paramValue(params, name) || undefined;
+
+/** Values of one typed parameter that is a list with commas between the items */
+export const paramList = (params: QueryParam[], name: string) => {
+  const items = paramValue(params, name)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length ? items : undefined;
+};
+
 /** Converts the values of `contentParams` to the options of the SDK */
 export const contentOptions = (
   params: QueryParam[],
@@ -83,6 +124,7 @@ export const contentOptions = (
   includeChapterNumbers: paramFlag(params, "include-chapter-numbers"),
   includeVerseNumbers: paramFlag(params, "include-verse-numbers"),
   includeVerseSpans: paramFlag(params, "include-verse-spans"),
+  parallels: paramList(params, "parallels"),
 });
 
 /**
