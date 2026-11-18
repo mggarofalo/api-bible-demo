@@ -100,7 +100,12 @@ export default async function BiblesPage(props: BiblesPageProps) {
         items={bibles.map((bible) => ({
           title: (
             <p>
-              <span className="font-bold">{bible.name}</span> (
+              {/* The key stops a React warning. This title goes from the server to a
+                  client component, and React then sees the children of <p> as a list. */}
+              <span key="name" className="font-bold">
+                {bible.name}
+              </span>{" "}
+              (
               {bible.abbreviation})
             </p>
           ),
