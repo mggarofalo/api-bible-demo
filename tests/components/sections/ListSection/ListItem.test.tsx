@@ -1,6 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import type { AnchorHTMLAttributes } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { ListItem } from "@/components/sections/ListSection/ListItem";
+
+//Stub of next/link that shows the prefetch prop, which the real link does not render
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch,
+    children,
+    ...rest
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => (
+    <a data-prefetch={String(prefetch)} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 describe("ListItem", () => {
   it("links to the href and shows the title and info", () => {
@@ -9,6 +23,11 @@ describe("ListItem", () => {
     expect(link).toHaveAttribute("href", "/bibles/b/books/GEN");
     expect(link).toHaveTextContent("Genesis");
     expect(link).toHaveTextContent("50 chapters");
+  });
+
+  it("never prefetches the link, so hovering does not call the API", () => {
+    render(<ListItem title="Genesis" href="/x" />);
+    expect(screen.getByRole("link")).toHaveAttribute("data-prefetch", "false");
   });
 
   it("shows a default hint when there is no info", () => {

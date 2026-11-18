@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { coverage } from "@/parity/coverage.mjs";
 import reference from "@/parity/api-reference.json";
+import { createBibleClient } from "@americanbible/api-bible-sdk";
+import { demoBibles, hasSections } from "@/utils/demoBibles";
 
 type Entry = {
   ids?: Record<string, string>;
@@ -95,6 +97,54 @@ describe("coverage manifest", () => {
           endpoints[path].parameters[name].default,
         );
       }
+    }
+  });
+
+  it("names an SDK method that exists on the real client", () => {
+    //Constructing the client makes no request
+    const client = createBibleClient({ apiKey: "dummy" }) as unknown as Record<
+      string,
+      Record<string, unknown> | undefined
+    >;
+    for (const [path, entry] of covered) {
+      const [resource, method] = (entry.sdk ?? "").split(".");
+      expect(typeof client[resource]?.[method], `${path} ${entry.sdk}`).toBe(
+        "function",
+      );
+    }
+  });
+
+  it("uses Bibles of the demo list for every sample Bible ID", () => {
+    const demoIds = demoBibles.map(({ id }) => id);
+    for (const [path, entry] of covered) {
+      const bibleId = entry.ids?.bibleId;
+      if (bibleId) {
+        expect(demoIds, path).toContain(bibleId);
+      }
+    }
+    //The Bibles that are used as sample values for parallels are in the list too
+    for (const [path, entry] of covered) {
+      for (const [name, param] of Object.entries(entry.params ?? {})) {
+        if (name === "parallels" || name === "ids") {
+          for (const id of (param.sample ?? "").split(",")) {
+            expect(demoIds, `${path} ${name}`).toContain(id.trim());
+          }
+        }
+      }
+    }
+  });
+
+  it("uses a Bible with sections for the endpoints that need sections", () => {
+    const needsSections = covered.filter(
+      ([path, entry]) =>
+        path.endsWith("/sections") ||
+        path.includes("/sections/") ||
+        entry.sdk?.startsWith("sections.") ||
+        "include-chapters-and-sections" in (entry.params ?? {}),
+    );
+    expect(needsSections.length).toBeGreaterThan(0);
+    for (const [path, entry] of needsSections) {
+      expect(hasSections(entry.ids?.bibleId ?? ""), path).toBe(true);
     }
   });
 

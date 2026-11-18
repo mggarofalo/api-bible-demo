@@ -9,6 +9,13 @@ describe("Markdown", () => {
     expect(screen.getByText("First one").tagName).toBe("P");
   });
 
+  it("splits paragraphs at a blank line that has spaces in it", () => {
+    //The blank line has a space, a tab and a space
+    render(<Markdown text={"First one\n \t \nSecond one"} />);
+    expect(screen.getByText("First one").tagName).toBe("P");
+    expect(screen.getByText("Second one").tagName).toBe("P");
+  });
+
   it("joins the lines of one paragraph with spaces and handles CRLF", () => {
     render(<Markdown text={"line a\r\nline b"} />);
     expect(screen.getByText("line a line b")).toBeInTheDocument();
@@ -34,6 +41,14 @@ describe("Markdown", () => {
     const { container } = render(<Markdown text={"a \\*not italic\\* b"} />);
     expect(container.querySelector("i")).toBeNull();
     expect(container).toHaveTextContent("a *not italic* b");
+  });
+
+  it("keeps an escaped asterisk as plain text inside link text", () => {
+    render(<Markdown text={"[a \\*b\\* c](https://x.test/a)"} />);
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "https://x.test/a");
+    expect(link).toHaveTextContent("a *b* c");
+    expect(link.querySelector("i")).toBeNull();
   });
 
   it("does not turn underscores inside words into emphasis", () => {

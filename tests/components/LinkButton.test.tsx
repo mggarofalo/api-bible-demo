@@ -1,6 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import type { AnchorHTMLAttributes } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { LinkButton } from "@/components/LinkButton";
+
+//Stub of next/link that shows the prefetch prop, which the real link does not render
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch,
+    children,
+    ...rest
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => (
+    <a data-prefetch={String(prefetch)} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 describe("LinkButton", () => {
   it("renders a link with the title and href", () => {
@@ -9,6 +23,11 @@ describe("LinkButton", () => {
       "href",
       "https://docs.api.bible",
     );
+  });
+
+  it("never prefetches the link, so hovering does not call the API", () => {
+    render(<LinkButton title="Docs" href="/docs" />);
+    expect(screen.getByRole("link")).toHaveAttribute("data-prefetch", "false");
   });
 
   it("shows the external icon only when external", () => {

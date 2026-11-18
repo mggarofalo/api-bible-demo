@@ -499,6 +499,34 @@ describe("ReferencePanel", () => {
     expect(openLink()).toHaveAttribute("href", "/bibles/b1/passages/GEN.1.1-GEN.1.3");
   });
 
+  it("starts a passage in one chapter with Same and None as the end choices", async () => {
+    navigation.params = { passageId: "GEN.1.1-GEN.1.3" };
+    render(<ReferencePanel />, { wrapper: Provider });
+    await waitFor(() => expect(select("Last verse")).toHaveValue("GEN.1.3"));
+
+    //Same chapter: the selected option is "Same", and the end verse may still be "None"
+    expect(
+      within(select("Last chapter")).getByRole("option", { name: "Same" }),
+    ).toHaveProperty("selected", true);
+    expect(select("Last chapter")).toHaveDisplayValue("Same");
+    expect(optionLabels("Last verse")).toEqual(["None", "2", "3"]);
+    expect(select("Last verse")).toHaveDisplayValue("3");
+  });
+
+  it("enables the last chapter only after a verse is selected", async () => {
+    const user = userEvent.setup();
+    render(<ReferencePanel />, { wrapper: Provider });
+    await choose(user, "Book", "Genesis");
+    await choose(user, "Chapter", "1");
+
+    //A book and a chapter, but no verse
+    expect(select("Last chapter")).toBeDisabled();
+
+    await choose(user, "Verse", "1");
+
+    expect(select("Last chapter")).toBeEnabled();
+  });
+
   it("calls onOpen when Open is clicked", async () => {
     const onOpen = vi.fn();
     const user = userEvent.setup();

@@ -222,6 +222,22 @@ describe("FumsPanel", () => {
     expect(screen.getByText("Wait for the request.")).toBeInTheDocument();
   });
 
+  it("ignores requests that only look like the FUMS server", () => {
+    render(
+      <>
+        <panel.FumsPanel />
+        <panel.FumsReporter token="tok" />
+      </>,
+    );
+    sendEntries([
+      { name: "https://rest.api.bible/v1/bibles?t=tok", duration: 4 },
+      { name: "https://api.bible/fums?t=tok", duration: 4 },
+      { name: "https://example.com/?next=https://fums.api.bible/f3", duration: 4 },
+    ]);
+    expect(fums.fumsStore.getSnapshot().reports[0].request).toBeUndefined();
+    expect(screen.getByText("Wait for the request.")).toBeInTheDocument();
+  });
+
   it("stops reading requests when it unmounts", () => {
     const { unmount } = render(<panel.FumsPanel />);
     unmount();

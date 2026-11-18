@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,6 +51,16 @@ describe("InfoSection", () => {
     expect(screen.getByText("custom info")).toBeInTheDocument();
     //No URL anywhere, so no URL block
     expect(screen.queryByTitle("Copy the URL")).toBeNull();
+  });
+
+  it("shows the given info instead of the description when there is no title", () => {
+    render(<InfoSection info={<p>custom info</p>} />);
+    //The heading and the URL still come from the reference
+    expect(screen.getByRole("heading", { name: "List Bibles" })).toBeInTheDocument();
+    expect(screen.getByText("https://rest.api.bible/v1/bibles")).toBeInTheDocument();
+    expect(screen.getByText("custom info")).toBeInTheDocument();
+    expect(screen.queryByText("all")).toBeNull();
+    expect(screen.queryByText(/Returns/)).toBeNull();
   });
 
   it("renders nothing when there is no title and no endpoint", () => {
@@ -129,11 +139,14 @@ describe("InfoSection", () => {
           "cursor-pointer",
         ),
       );
-      await vi.advanceTimersByTimeAsync(2100);
-      await waitFor(() =>
-        expect(screen.getByTitle("Copy the URL").querySelector("svg")).toHaveClass(
-          "cursor-pointer",
-        ),
+      //The check is still there after one second
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(screen.getByTitle("Copy the URL").querySelector("svg")).not.toHaveClass(
+        "cursor-pointer",
+      );
+      await act(() => vi.advanceTimersByTimeAsync(1100));
+      expect(screen.getByTitle("Copy the URL").querySelector("svg")).toHaveClass(
+        "cursor-pointer",
       );
     } finally {
       vi.useRealTimers();

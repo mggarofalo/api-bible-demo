@@ -266,6 +266,40 @@ describe("contentOptions", () => {
       parallels: ["a-01", "b-01"],
     });
   });
+
+  //Each flag alone, so two flags that read the wrong parameter cannot hide each other
+  it.each([
+    ["include-notes", "includeNotes"],
+    ["include-titles", "includeTitles"],
+    ["include-chapter-numbers", "includeChapterNumbers"],
+    ["include-verse-numbers", "includeVerseNumbers"],
+    ["include-verse-spans", "includeVerseSpans"],
+  ])("maps %s to %s only", (name, option) => {
+    const off = {
+      "include-notes": "false",
+      "include-titles": "false",
+      "include-chapter-numbers": "false",
+      "include-verse-numbers": "false",
+      "include-verse-spans": "false",
+    };
+    const options = contentOptions(
+      readParams(contentParams(), { ...off, [name]: "true" }),
+    );
+    expect(options).toMatchObject({
+      includeNotes: false,
+      includeTitles: false,
+      includeChapterNumbers: false,
+      includeVerseNumbers: false,
+      includeVerseSpans: false,
+      [option]: true,
+    });
+  });
+
+  it("maps the content type", () => {
+    expect(
+      contentOptions(content({ "content-type": "json" })).contentType,
+    ).toBe("json");
+  });
 });
 
 describe("toQueryString", () => {

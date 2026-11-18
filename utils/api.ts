@@ -50,8 +50,25 @@ const SECRET_HEADERS = ["api-key", "authorization"];
  * Time that the demo keeps a response of the API, in seconds. The default is one day:
  * the text of a Bible changes very rarely. Set the `API_CACHE_SECONDS` environment
  * variable to change it. The value 0 stops the cache.
+ *
+ * A value that is not a number of seconds, 0 or more, is not used: the default applies.
+ * Without this check, such a value stops the cache and gives no message.
  */
-const CACHE_SECONDS = Number(process.env.API_CACHE_SECONDS ?? 60 * 60 * 24);
+const DEFAULT_CACHE_SECONDS = 60 * 60 * 24;
+const readCacheSeconds = (value: string | undefined) => {
+  if (value === undefined || value.trim() === "") {
+    return DEFAULT_CACHE_SECONDS;
+  }
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    console.warn(
+      `API_CACHE_SECONDS must be a number of seconds, 0 or more. It was "${value}". The default (${DEFAULT_CACHE_SECONDS}) applies.`,
+    );
+    return DEFAULT_CACHE_SECONDS;
+  }
+  return seconds;
+};
+const CACHE_SECONDS = readCacheSeconds(process.env.API_CACHE_SECONDS);
 
 //Holds the data of a single `traced` call, keeping concurrent page renders apart
 const traces = new AsyncLocalStorage<Trace>();

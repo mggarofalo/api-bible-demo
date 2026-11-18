@@ -57,6 +57,20 @@ describe("BibleScopeSwitch", () => {
     expect(button("Selected")).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("writes the cookie for the whole site, for one year, with samesite lax", async () => {
+    //document.cookie hides the attributes when it is read, so watch what is written
+    const write = vi.spyOn(document, "cookie", "set");
+    const user = userEvent.setup();
+    render(<BibleScopeSwitch />);
+
+    await user.click(button("All"));
+
+    expect(write).toHaveBeenCalledExactlyOnceWith(
+      "bible-scope=all; path=/; max-age=31536000; samesite=lax",
+    );
+    write.mockRestore();
+  });
+
   it("switches back to the selected scope", async () => {
     document.cookie = "bible-scope=all; path=/";
     const user = userEvent.setup();

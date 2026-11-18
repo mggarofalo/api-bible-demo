@@ -17,6 +17,16 @@ describe("ListSection", () => {
     );
   });
 
+  it("shows the info of each item and no empty message", () => {
+    render(<ListSection items={items} />);
+    expect(screen.getByText("second")).toBeInTheDocument();
+    //The item without info shows the default hint
+    expect(screen.getAllByText("Click to open")).toHaveLength(1);
+    expect(
+      screen.queryByText("This list has no items for this Bible."),
+    ).not.toBeInTheDocument();
+  });
+
   it("uses a custom title", () => {
     render(<ListSection title="Books" items={items} />);
     expect(screen.getByRole("heading", { name: "Books" })).toBeInTheDocument();

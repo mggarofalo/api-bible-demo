@@ -67,6 +67,18 @@ describe("parseOptions", () => {
     ).toEqual({ live: true, update: true, baseUrl: "https://demo.test", waitSeconds: 60 });
   });
 
+  it("reads --live without --update", () => {
+    const options = parseOptions(["--live"]);
+    expect(options.live).toBe(true);
+    expect(options.update).toBe(false);
+  });
+
+  it("reads --update without --live", () => {
+    const options = parseOptions(["--update"]);
+    expect(options.update).toBe(true);
+    expect(options.live).toBe(false);
+  });
+
   it("keeps an = in a value", () => {
     expect(parseOptions(["--base-url=http://demo.test/?a=b"]).baseUrl).toBe(
       "http://demo.test/?a=b",
@@ -159,6 +171,32 @@ describe("normalizeReference", () => {
         body: {},
       },
       pathParameters: { bibleId: "Id of the Bible" },
+    });
+  });
+
+  it("keeps a default that is 0, false or an empty string", () => {
+    const result = normalizeReference(
+      {
+        paths: {
+          "/a": {
+            get: {
+              parameters: [
+                { name: "zero", in: "query", schema: { default: 0 } },
+                { name: "off", in: "query", schema: { default: false } },
+                { name: "empty", in: "query", schema: { default: "" } },
+                { name: "none", in: "query", schema: {} },
+              ],
+            },
+          },
+        },
+      },
+      "x",
+    );
+    expect(result.endpoints["/a"].parameters).toEqual({
+      zero: { default: "0" },
+      off: { default: "false" },
+      empty: { default: "" },
+      none: {},
     });
   });
 
@@ -287,6 +325,22 @@ describe("referenceDifferences", () => {
     ]);
   });
 
+  it("finds methods that changed but are the same in number", () => {
+    const published = reference();
+    published.endpoints["/bibles"].methods = ["post"];
+    expect(referenceDifferences(reference(), published)).toEqual([
+      "/bibles changed its methods to post",
+    ]);
+  });
+
+  it("finds a value that was swapped for another value", () => {
+    const published = reference();
+    published.endpoints["/bibles"].parameters["include-full-details"].values = ["true", "maybe"];
+    expect(referenceDifferences(reference(), published)).toEqual([
+      '/bibles: the values of "include-full-details" changed to true, maybe',
+    ]);
+  });
+
   it("reports only the first change of a parameter", () => {
     const published = reference();
     published.endpoints["/bibles"].parameters["include-full-details"] = {
@@ -359,6 +413,16 @@ describe("checkEndpoints", () => {
     ]);
   });
 
+  it("fails for a deferred entry that is not in the reference", () => {
+    expect(
+      checkEndpoints(reference(), {
+        "/bibles": { sdk: "bibles.list" },
+        "/bibles/{bibleId}": { sdk: "bibles.get" },
+        "/gone": { deferred: "Later" },
+      }).filter((result) => !result.ok),
+    ).toEqual([failure("/gone is in parity/coverage.mjs, but not in the reference")]);
+  });
+
   it("passes a deferred entry that has a method that is not GET", () => {
     const ref = reference();
     ref.endpoints["/bibles"].methods = ["post"];
@@ -403,6 +467,15 @@ describe("checkParameters", () => {
       failure('/bibles: the reference has the parameter "include-full-details", but the manifest does not'),
       failure('/bibles: the manifest has the parameter "name", but the reference does not'),
     ]);
+  });
+
+  it("fails for an unknown parameter when no parameter is missing", () => {
+    const results = checkParameters(reference(), [
+      ["/bibles", { params: { ...params, name: { sample: "KJV" } } }],
+    ]);
+    expect(results).toHaveLength(1);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].message).toContain('"name"');
   });
 
   it("fails when the reference has no help text", () => {
@@ -496,7 +569,7 @@ describe("checkSource", () => {
     ]);
   });
 
-  it("finds values in the shared source, and skips deferred parameters and parameters with another name on the page", () => {
+  it("finds values in the shared source, and skips parameters with another name on the page", () => {
     const ref = reference();
     ref.endpoints["/bibles"].parameters.language.values = ["eng"];
     expect(
@@ -505,19 +578,45 @@ describe("checkSource", () => {
         [
           [
             "/bibles",
-            {
-              sdk: "bibles.list",
-              params: {
-                language: { sample: "eng", page: "lang" },
-                "include-full-details": { deferred: "Later" },
-              },
-            },
+            { sdk: "bibles.list", params: { language: { sample: "eng", page: "lang" } } },
           ],
         ],
         readPage,
         "const values = ['eng'];",
       ),
     ).toEqual([ok("/bibles → app/bibles/page.tsx")]);
+  });
+
+  it("skips a deferred parameter that is not in the page or the shared source", () => {
+    const ref = reference();
+    ref.endpoints["/bibles"].parameters.hidden = { values: ["nowhere"] };
+    expect(
+      checkSource(
+        ref,
+        [["/bibles", { sdk: "bibles.list", params: { hidden: { deferred: "Later" } } }]],
+        readPage,
+        "",
+      ),
+    ).toEqual([ok("/bibles → app/bibles/page.tsx")]);
+  });
+
+  it("fails when the page calls a longer method name, or a client that is not `client`", () => {
+    const sdkPages: Record<string, string> = {
+      "app/bibles/page.tsx": "await client.bibles.listing();",
+      "app/bibles/[bibleId]/page.tsx": "await foo.bibles.get(bibleId);",
+    };
+    const results = checkSource(
+      reference(),
+      [
+        ["/bibles", { sdk: "bibles.list" }],
+        ["/bibles/{bibleId}", { sdk: "bibles.get" }],
+      ],
+      (file) => sdkPages[file.replaceAll("\\", "/")],
+      "",
+    );
+    expect(results.map((result) => result.ok)).toEqual([false, false]);
+    expect(results[0].message).toContain("client.bibles.list()");
+    expect(results[1].message).toContain("client.bibles.get()");
   });
 });
 
@@ -532,9 +631,21 @@ describe("decodeHtml", () => {
     expect(decodeHtml("&nbsp;&#39;&apos;")).toBe("&nbsp;&#39;&apos;");
   });
 
-  it("decodes an escaped entity twice", () => {
-    //`&amp;lt;` is the text `&lt;`, but it becomes `<`
-    expect(decodeHtml("&amp;lt;")).toBe("<");
+  it("decodes an escaped entity once", () => {
+    //`&amp;lt;` is the text `&lt;`. It must not become `<`.
+    expect(decodeHtml("&amp;lt;")).toBe("&lt;");
+    expect(decodeHtml("&amp;gt;")).toBe("&gt;");
+    expect(decodeHtml("&amp;quot;")).toBe("&quot;");
+    expect(decodeHtml("&amp;#x27;")).toBe("&#x27;");
+    expect(decodeHtml("&amp;amp;")).toBe("&amp;");
+  });
+
+  it("decodes each plain entity on its own", () => {
+    expect(decodeHtml("&quot;")).toBe('"');
+    expect(decodeHtml("&#x27;")).toBe("'");
+    expect(decodeHtml("&lt;")).toBe("<");
+    expect(decodeHtml("&gt;")).toBe(">");
+    expect(decodeHtml("&amp;")).toBe("&");
   });
 });
 
@@ -624,6 +735,98 @@ describe("checkPageHtml", () => {
         }),
       ),
     ).toEqual([ok("/bibles → /v1/bibles?language=eng&include-full-details=false")]);
+  });
+
+  it("fails when the page has no API status", () => {
+    const page = html().replace(' data-api-status="200"', "");
+    expect(page).not.toContain("data-api-status");
+    const results = checkPageHtml(reference(), "/bibles", entry, page);
+    expect(results).toHaveLength(1);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].message).toContain("the API gave the status");
+  });
+
+  it("fails for a request path that only starts with the path of the endpoint", () => {
+    const results = checkPageHtml(
+      reference(),
+      "/bibles/{bibleId}",
+      { ids: { bibleId: "kjv" } },
+      html({
+        request: "https://rest.api.bible/v1/bibles/kjv/extra",
+        body: "<h1>Get a Bible</h1><p>Gets one Bible.</p>",
+      }),
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].message).toContain("/v1/bibles/kjv/extra");
+  });
+
+  it("compares the request with the expected value, not the sample, for the default", () => {
+    const ref = reference();
+    const body = "<p>Get Bibles</p><p>Gets a list of Bibles.</p><p>ISO 639-3 language code</p><p>Include full details</p>";
+    //The sample is not the default, but the expected value is: the demo must not send it
+    const expectDefault = {
+      params: { language: { sample: "eng" }, "include-full-details": { sample: "true", expect: "false" } },
+    };
+    expect(
+      checkPageHtml(ref, "/bibles", expectDefault, html({ body })).map((r) => r.ok),
+    ).toEqual([true]);
+    expect(
+      checkPageHtml(
+        ref,
+        "/bibles",
+        expectDefault,
+        html({ body, request: "https://rest.api.bible/v1/bibles?language=eng&include-full-details=false" }),
+      ).map((r) => r.ok),
+    ).toEqual([false]);
+    //The sample is the default, but the expected value is not: the demo must send it
+    const expectOther = {
+      params: { language: { sample: "eng" }, "include-full-details": { sample: "false", expect: "true" } },
+    };
+    expect(
+      checkPageHtml(
+        ref,
+        "/bibles",
+        expectOther,
+        html({ body, request: "https://rest.api.bible/v1/bibles?language=eng&include-full-details=true" }),
+      ).map((r) => r.ok),
+    ).toEqual([true]);
+    expect(
+      checkPageHtml(ref, "/bibles", expectOther, html({ body })).map((r) => r.ok),
+    ).toEqual([false]);
+  });
+
+  it("finds the help text when the page has markup inside a sentence", () => {
+    const ref = reference();
+    ref.endpoints["/bibles/{bibleId}"].summary = "Gets a list of items";
+    expect(
+      checkPageHtml(
+        ref,
+        "/bibles/{bibleId}",
+        { ids: { bibleId: "kjv" } },
+        html({
+          request: "https://rest.api.bible/v1/bibles/kjv",
+          body: "<h1>Gets a <code>list</code> of items</h1><p>Gets one Bible.</p>",
+        }),
+      ),
+    ).toEqual([ok("/bibles/{bibleId} → /v1/bibles/kjv")]);
+  });
+
+  it("fails when the help text is different after the first 20 characters", () => {
+    const ref = reference();
+    ref.endpoints["/bibles/{bibleId}"].summary = `${"a".repeat(40)}one`;
+    const results = checkPageHtml(
+      ref,
+      "/bibles/{bibleId}",
+      { ids: { bibleId: "kjv" } },
+      html({
+        request: "https://rest.api.bible/v1/bibles/kjv",
+        body: `<h1>${"a".repeat(40)}two</h1><p>Gets one Bible.</p>`,
+      }),
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].message).toContain("the summary");
   });
 
   it("fails when the page shows no API request", () => {

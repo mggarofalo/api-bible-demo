@@ -76,6 +76,25 @@ describe("JSONSection", () => {
     expect(wrapper).toHaveAttribute("data-api-status", "200");
   });
 
+  it("shows the request headers only in Request and the response headers only in Response", () => {
+    const ex = exchange();
+    ex.request.headers = [["x-sent", "sent-value"]];
+    ex.response.headers = [["x-received", "received-value"]];
+    render(<JSONSection json={{}} exchange={ex} />);
+    const request = screen.getByText("Request").closest("details")!;
+    const response = screen.getByText("Response").closest("details")!;
+
+    expect(within(request).getByText("x-sent")).toBeInTheDocument();
+    expect(within(request).getByText("sent-value")).toBeInTheDocument();
+    expect(within(request).queryByText("x-received")).toBeNull();
+    expect(within(request).queryByText("received-value")).toBeNull();
+
+    expect(within(response).getByText("x-received")).toBeInTheDocument();
+    expect(within(response).getByText("received-value")).toBeInTheDocument();
+    expect(within(response).queryByText("x-sent")).toBeNull();
+    expect(within(response).queryByText("sent-value")).toBeNull();
+  });
+
   it("leaves out the query parameters section when the URL has none", () => {
     const ex = exchange();
     ex.request.url = "https://rest.api.bible/v1/bibles";

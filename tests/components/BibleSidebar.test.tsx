@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BibleNavProvider } from "@/components/BibleNav";
 import { BibleSidebar } from "@/components/BibleSidebar";
 import type { SidebarBook } from "@/utils/getSidebarBooks";
@@ -101,6 +101,8 @@ describe("BibleSidebar", () => {
     const aside = await openByHover(user);
 
     expect(toggle()).toHaveAccessibleName("Keep the sidebar open");
+    //Open by hover, not pinned: the button still says the sidebar is expanded
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
     expect(within(aside).getByRole("link", { name: "Books" })).toHaveAttribute(
       "href",
       "/bibles/bible1/books",
@@ -115,37 +117,42 @@ describe("BibleSidebar", () => {
     );
   });
 
-  it("closes after the pointer leaves", async () => {
-    mockFetch();
-    const user = userEvent.setup();
-    renderSidebar();
-    await openByHover(user);
+  describe("close delay", () => {
+    //Fake timers, so the test sees the exact moment of the close. Events come from
+    //fireEvent because user-event waits on real timers.
+    const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
-    await user.unhover(toggle());
+    beforeEach(() => {
+      vi.useFakeTimers();
+      mockFetch();
+      renderSidebar();
+      fireEvent.mouseEnter(toggle());
+    });
 
-    await waitFor(() =>
-      expect(screen.queryByRole("complementary")).not.toBeInTheDocument(),
-    );
-  });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
-  it("stays open when the pointer returns before the delay ends", async () => {
-    mockFetch();
-    const user = userEvent.setup();
-    renderSidebar();
-    await openByHover(user);
+    it("closes only after 250 ms without the pointer", () => {
+      expect(screen.getByRole("complementary")).toBeInTheDocument();
 
-    await user.unhover(toggle());
-    await user.hover(toggle());
+      fireEvent.mouseLeave(toggle());
+      advance(249);
+      expect(screen.getByRole("complementary")).toBeInTheDocument();
 
-    //Watch for a close for longer than the close delay: it must not happen
-    await expect(
-      waitFor(
-        () =>
-          expect(screen.queryByRole("complementary")).not.toBeInTheDocument(),
-        { timeout: 400 },
-      ),
-    ).rejects.toThrow();
-    expect(screen.getByRole("complementary")).toBeInTheDocument();
+      advance(1);
+      expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    });
+
+    it("stays open when the pointer returns before the delay ends", () => {
+      fireEvent.mouseLeave(toggle());
+      advance(200);
+      fireEvent.mouseEnter(toggle());
+
+      //The first close is cancelled, so no close comes later
+      advance(1000);
+      expect(screen.getByRole("complementary")).toBeInTheDocument();
+    });
   });
 
   it("pins on click, remembers it and moves the page", async () => {
@@ -287,6 +294,30 @@ describe("BibleSidebar", () => {
 
       expect(await screen.findByRole("link", { name: "1" })).toBeInTheDocument();
       expect(screen.queryByText("Wait for the verses.")).not.toBeInTheDocument();
+    });
+
+    it("makes no request when a book opens, and one request when a chapter opens", async () => {
+      const fetchMock = mockFetch();
+      const user = userEvent.setup();
+      renderSidebar();
+      await openByHover(user);
+
+      await user.click(
+        screen.getByRole("button", { name: "Show the chapters of Genesis" }),
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "Show the verses of Genesis, Chapter 2",
+        }),
+      );
+      await screen.findByRole("link", { name: "1" });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/bibles/bible1/chapters/GEN.2/verses",
+      );
     });
 
     it("loads the verses when the user opens a chapter", async () => {

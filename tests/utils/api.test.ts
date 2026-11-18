@@ -4,7 +4,7 @@ import {
   NotFoundError,
   ServerError,
 } from "@americanbible/api-bible-sdk";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 //A small stand-in for the data cache of Next.js. It keeps each result by its key, and it
 //does not keep a call that throws, like the real cache.
@@ -91,6 +91,10 @@ const loadApiWithSdkFetch = async () => {
     vi.doUnmock("@americanbible/api-bible-sdk");
   }
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 beforeEach(() => {
   cache.store.clear();
@@ -215,6 +219,60 @@ describe("client", () => {
 
     expect(data).toEqual([verse]);
   });
+
+  it.each([204, 205, 304])(
+    "gives a response with no body to the SDK for status %i",
+    async (status) => {
+      stubFetch(() => new Response(null, { status }));
+      const { sdkFetch } = await loadApiWithSdkFetch();
+
+      //A body on one of these statuses would make `new Response` throw
+      const response = await sdkFetch(`${API}/bibles/bible-1/books`);
+
+      expect(response.status).toBe(status);
+      expect(response.body).toBeNull();
+    },
+  );
+
+  it.each(["content-length", "content-encoding"])(
+    "removes the %s header and keeps the other headers",
+    async (name) => {
+      stubFetch(() =>
+        jsonResponse(
+          { data: [] },
+          {
+            headers: {
+              "content-length": "999999999",
+              "content-encoding": "gzip",
+              "x-request-id": "req-1",
+            },
+          },
+        ),
+      );
+      const { sdkFetch } = await loadApiWithSdkFetch();
+
+      const response = await sdkFetch(`${API}/bibles/bible-1/books`);
+
+      expect(response.headers.has(name)).toBe(false);
+      expect(response.headers.get("x-request-id")).toBe("req-1");
+      expect(response.headers.get("content-type")).toBe("application/json");
+    },
+  );
+
+  it("gives the failure of fetch itself to the SDK when the cache is on", async () => {
+    const failure = new TypeError("fetch failed");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw failure;
+      }),
+    );
+    const { sdkFetch } = await loadApiWithSdkFetch();
+
+    //It is not an error from the API, so no stored response exists to give back
+    await expect(sdkFetch(`${API}/bibles/bible-1/books`)).rejects.toBe(failure);
+    expect(cache.store.size).toBe(0);
+  });
 });
 
 describe("cache", () => {
@@ -309,6 +367,19 @@ describe("cache", () => {
     expect(cache.store.size).toBe(0);
   });
 
+  it("does not keep a redirect", async () => {
+    const fetchMock = stubFetch(() =>
+      jsonResponse({ data: [] }, { status: 301, statusText: "Moved" }),
+    );
+    const { client } = await loadApi();
+
+    await client.verses.list("bible-1", "GEN.1").catch(() => undefined);
+    await client.verses.list("bible-1", "GEN.1").catch(() => undefined);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(cache.store.size).toBe(0);
+  });
+
   it("does not use the cache when API_CACHE_SECONDS is 0", async () => {
     const fetchMock = stubFetch();
     const { client } = await loadApi({ API_CACHE_SECONDS: "0" });
@@ -318,6 +389,58 @@ describe("cache", () => {
 
     expect(cache.unstable_cache).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe("API_CACHE_SECONDS", () => {
+    const ONE_DAY = 60 * 60 * 24;
+
+    //Runs one request with the given value, and gives what the cache saw
+    const run = async (value: string | undefined) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      stubFetch();
+      vi.stubEnv("API_CACHE_SECONDS", value);
+      const { client } = await loadApi();
+      await client.verses.list("bible-1", "GEN.1");
+      const revalidate = cache.unstable_cache.mock.calls[0]?.[2].revalidate;
+      return { warn, revalidate, cacheUsed: cache.unstable_cache.mock.calls.length > 0 };
+    };
+
+    it.each([undefined, "", "   "])("uses the default for %j with no warning", async (value) => {
+      const { warn, revalidate } = await run(value);
+
+      expect(revalidate).toBe(ONE_DAY);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it.each(["soon", "-5", "Infinity", "NaN"])(
+      "uses the default and warns for %j",
+      async (value) => {
+        const { warn, revalidate } = await run(value);
+
+        expect(revalidate).toBe(ONE_DAY);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining(`It was "${value}"`),
+        );
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining("API_CACHE_SECONDS"),
+        );
+      },
+    );
+
+    it("stops the cache for 0 with no warning", async () => {
+      const { warn, cacheUsed } = await run("0");
+
+      expect(cacheUsed).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("uses a number of seconds with no warning", async () => {
+      const { warn, revalidate } = await run("60");
+
+      expect(revalidate).toBe(60);
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -350,6 +473,23 @@ describe("traced", () => {
       ]),
     });
     expect(result.exchange?.response.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("gives the time that the API took as the duration", async () => {
+    let time = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => time);
+    //The API answers 250.4 ms after the request starts
+    stubFetch(() => {
+      time = 1_250.4;
+      return jsonResponse({ data: [verse] });
+    });
+    const { client, traced } = await loadApi();
+
+    const { exchange } = await traced(() =>
+      client.verses.list("bible-1", "GEN.1"),
+    );
+
+    expect(exchange?.response.durationMs).toBe(250);
   });
 
   it("never puts the API key in the exchange", async () => {

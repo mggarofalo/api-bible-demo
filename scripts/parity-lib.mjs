@@ -343,12 +343,13 @@ export const checkSource = (reference, covered, readPage, shared) => {
 
 /** @param {string} text */
 export const decodeHtml = (text) =>
+  //`&amp;` is last. If it is first, the text `&amp;lt;` (which shows as `&lt;`) becomes `<`.
   text
-    .replaceAll("&amp;", "&")
     .replaceAll("&quot;", '"')
     .replaceAll("&#x27;", "'")
     .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">");
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
 
 /**
  * Removes the Markdown marks from text of the reference, to compare it with the text of a page

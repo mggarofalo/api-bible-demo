@@ -270,6 +270,33 @@ describe("QueryParamsSection", () => {
       expect(lastUrl()).toBe(`${SEARCH}?query=grace`);
     });
 
+    it("trims the text when the box loses the focus", async () => {
+      const user = userEvent.setup();
+      renderSection(SEARCH, "", [textParam("query", "e.g. love")]);
+
+      await user.type(screen.getByRole("textbox"), "  grace  ");
+      await user.tab();
+
+      expect(lastUrl()).toBe(`${SEARCH}?query=grace`);
+    });
+
+    it("shows a new value from the server, not the text that the user typed", async () => {
+      const user = userEvent.setup();
+      const definitions = [textParam("query", "e.g. love")];
+      const view = renderSection(SEARCH, "query=love", definitions);
+      await user.type(screen.getByRole("textbox"), " and more");
+      expect(screen.getByRole("textbox")).toHaveValue("love and more");
+
+      //The server sends a different value
+      view.rerender(
+        <BibleNavProvider bibleId="bible1" bibles={bibles} books={[]}>
+          <QueryParamsSection params={readParams(definitions, { query: "faith" })} />
+        </BibleNavProvider>,
+      );
+
+      expect(screen.getByRole("textbox")).toHaveValue("faith");
+    });
+
     it("ignores other keys", async () => {
       const user = userEvent.setup();
       renderSection(SEARCH, "", [textParam("query", "e.g. love")]);

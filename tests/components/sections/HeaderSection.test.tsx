@@ -72,6 +72,33 @@ describe("HeaderSection", () => {
     );
   });
 
+  it("passes the external and tab props on to the action links", () => {
+    render(
+      <HeaderSection
+        title="Home"
+        actionItems={[
+          { title: "Plain", href: "/plain" },
+          { title: "Outside", href: "https://docs.api.bible", external: true },
+          { title: "Folder", href: "/folder", tab: true },
+        ]}
+      />,
+    );
+    const plain = screen.getByRole("link", { name: "Plain" });
+    const outside = screen.getByRole("link", { name: "Outside" });
+    const folder = screen.getByRole("link", { name: "Folder" });
+
+    //Only the external link has the arrow icon
+    expect(plain.querySelector("svg")).toBeNull();
+    expect(outside.querySelector("svg")).not.toBeNull();
+    expect(folder.querySelector("svg")).toBeNull();
+    //Only the tab link has the folder tab style
+    expect(folder).toHaveClass("folder-tab");
+    expect(plain).not.toHaveClass("folder-tab");
+    expect(outside).not.toHaveClass("folder-tab");
+    //Every link gets the border from the header
+    expect(plain).toHaveClass("border-[1px]");
+  });
+
   it("renders no title and no actions when none are given", () => {
     render(<HeaderSection />);
     expect(screen.queryByRole("heading")).toBeNull();

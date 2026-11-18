@@ -43,6 +43,9 @@ describe("JsonBodyLink", () => {
       </>,
     );
     await user.click(screen.getByRole("link"));
-    expect(screen.getByTestId("other")).not.toHaveAttribute("open");
+    const other = screen.getByTestId("other");
+    //The code sets the open property, so check the property and not the attribute
+    expect(other).not.toHaveAttribute("open");
+    expect("open" in other).toBe(false);
   });
 });

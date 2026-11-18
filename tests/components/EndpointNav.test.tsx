@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import type { AnchorHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BibleNavProvider } from "@/components/BibleNav";
 import { EndpointNav, Tip } from "@/components/EndpointNav";
@@ -14,6 +15,19 @@ vi.mock("next/navigation", () => ({
   usePathname: () => route.pathname,
   useParams: () => route.params,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+
+//Stub of next/link that shows the prefetch prop, which the real link does not render
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch,
+    children,
+    ...rest
+  }: AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean }) => (
+    <a data-prefetch={String(prefetch)} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 const books: SidebarBook[] = [
@@ -174,6 +188,33 @@ describe("EndpointNav", () => {
     setRoute("/bibles/bible1/books/XXX", { bookId: "XXX" });
     renderNav();
     expect(linkNames()).toEqual(["Bible", "Books", "Search"]);
+  });
+
+  it("never prefetches a link, so hovering does not call the API", () => {
+    setRoute("/bibles/bible1/passages/GEN.1.1-GEN.1.3", {
+      passageId: "GEN.1.1-GEN.1.3",
+    });
+    renderNav();
+    const links = screen.getAllByRole("link");
+    expect(links.length).toBeGreaterThan(3);
+    for (const link of links) {
+      expect(link).toHaveAttribute("data-prefetch", "false");
+    }
+  });
+
+  it.each([
+    ["a chapter", "/bibles/bible1/chapters/XXX.1", { chapterId: "XXX.1" }],
+    ["a verse", "/bibles/bible1/verses/XXX.1.2", { verseId: "XXX.1.2" }],
+    [
+      "a passage",
+      "/bibles/bible1/passages/XXX.1.2-XXX.1.3",
+      { passageId: "XXX.1.2-XXX.1.3" },
+    ],
+  ])("shows only the Bible links for %s of a book that the Bible does not have", (_name, path, params) => {
+    setRoute(path, params);
+    renderNav();
+    expect(linkNames()).toEqual(["Bible", "Books", "Search"]);
+    expect(screen.queryByText(/XXX/)).not.toBeInTheDocument();
   });
 
   it("marks only the link of the current page", () => {

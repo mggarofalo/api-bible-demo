@@ -114,12 +114,27 @@ describe("BibleBreadcrumbs", () => {
     const last = crumbs.lastElementChild;
 
     if (name) {
-      expect(last).toHaveTextContent(name);
+      //The name is plain text, not a link
       expect(last?.tagName).toBe("P");
+      expect(last?.textContent).toBe(name);
+      expect(last?.querySelector("a")).toBeNull();
     } else {
-      //The reference picker is the last crumb
+      //The reference picker is the last crumb: a button with no reference, and no name
       expect(last?.tagName).toBe("DIV");
+      expect(last?.textContent).toBe("Select a reference");
+      expect(within(last as HTMLElement).queryByRole("link")).toBeNull();
+      expect(
+        within(last as HTMLElement).getByRole("button"),
+      ).toHaveAccessibleName("Select a reference");
     }
+  });
+
+  it("names the sections list when the path has no section ID", () => {
+    renderCrumbs(`/bibles/${KJV}/sections`);
+    const crumbs = screen.getByRole("navigation", { name: "Location" });
+
+    expect(crumbs.lastElementChild?.textContent).toBe("Sections");
+    expect(crumbs).not.toHaveTextContent("undefined");
   });
 
   it("puts a divider between the crumbs", () => {
@@ -203,6 +218,21 @@ describe("RouteHero", () => {
 
     expect(bibleTip).toMatch(/^\{bibleId\}./);
     expect(verseTip).toMatch(/^\{verseId\}./);
+  });
+
+  it.each([
+    ["a book", "/books/GEN", "{bookId}"],
+    ["a chapter", "/chapters/GEN.1", "{chapterId}"],
+    ["a passage", "/passages/GEN.1.1-GEN.1.3", "{passageId}"],
+    ["a section", "/sections/GEN.S1", "{sectionId}"],
+  ])("names the ID of %s with its placeholder", (_name, path, placeholder) => {
+    navigation.pathname = `/bibles/${KJV}${path}`;
+    render(<RouteHero />);
+    const idTip = tips().at(-1) as string;
+
+    //The tip starts with the exact placeholder, then the description
+    expect(idTip.startsWith(placeholder)).toBe(true);
+    expect(idTip.length).toBeGreaterThan(placeholder.length);
   });
 
   it("gives each word a definition", () => {

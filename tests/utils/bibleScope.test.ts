@@ -4,7 +4,6 @@ import {
   SELECTED_BIBLE_IDS,
   parseBibleScope,
 } from "@/utils/bibleScope";
-import { demoBibles } from "@/utils/demoBibles";
 
 describe("parseBibleScope", () => {
   it("returns all for the value all", () => {
@@ -32,7 +31,10 @@ describe("bible scope constants", () => {
   });
 
   it("lists the IDs of the demo Bibles in order", () => {
-    expect(SELECTED_BIBLE_IDS).toEqual(demoBibles.map((bible) => bible.id));
-    expect(SELECTED_BIBLE_IDS.length).toBeGreaterThan(0);
+    //The full list is pinned in demoBibles.test.ts, so check the ends here
+    expect(SELECTED_BIBLE_IDS).toHaveLength(11);
+    expect(SELECTED_BIBLE_IDS[0]).toBe("de4e12af7f28f599-01");
+    expect(SELECTED_BIBLE_IDS[4]).toBe("bba9f40183526463-01");
+    expect(SELECTED_BIBLE_IDS.at(-1)).toBe("40072c4a5aba4022-01");
   });
 });

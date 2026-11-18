@@ -25,6 +25,37 @@ describe("FilterableListSection", () => {
     );
   });
 
+  it("matches an uppercase query against text in any case", async () => {
+    const user = userEvent.setup();
+    render(<FilterableListSection filterLabel="Filter Bibles" items={items} />);
+    await user.type(screen.getByRole("searchbox"), "ENGLISH");
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(
+      ["/web"],
+    );
+  });
+
+  it("matches a lowercase query against uppercase text", async () => {
+    const user = userEvent.setup();
+    render(<FilterableListSection filterLabel="Filter Bibles" items={items} />);
+    //The text of the first item has "KJV" in uppercase
+    await user.type(screen.getByRole("searchbox"), "kjv");
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(
+      ["/kjv"],
+    );
+  });
+
+  it("matches an uppercase query against lowercase text", async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterableListSection
+        filterLabel="Filter"
+        items={[{ title: "Lower", href: "/lower", filterText: "all lowercase text" }]}
+      />,
+    );
+    await user.type(screen.getByRole("searchbox"), "LOWERCASE");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
   it("requires every word to match", async () => {
     const user = userEvent.setup();
     render(<FilterableListSection filterLabel="Filter Bibles" items={items} />);
