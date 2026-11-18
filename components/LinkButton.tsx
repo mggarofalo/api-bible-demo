@@ -24,7 +24,7 @@ export const LinkButton = ({
     <Link
       href={href}
       prefetch={false}
-      className={`flex gap-2 items-center justify-center px-4 py-2 bg-[#f1f7fe] hover:bg-[#2563eb] hover:text-white border-[#2563eb] ${className ?? ""}`}
+      className={`flex gap-2 items-center justify-center px-4 py-2 rounded bg-accent-soft hover:bg-accent hover:text-white border-accent ${className ?? ""}`}
     >
       {children}
       {!!title && <span className="text-md text-nowrap">{title}</span>}

@@ -126,7 +126,7 @@ export const Combobox = ({
         aria-label={`${label}: ${closedText}`}
         aria-haspopup="listbox"
         onClick={show}
-        className="flex items-center gap-1 text-sm font-bold cursor-pointer border-b-[1px] border-dashed border-transparent hover:border-black"
+        className="flex items-center gap-1 text-sm font-bold cursor-pointer border-b-[1px] border-dashed border-transparent hover:border-line"
       >
         {closedText}
         <ChevronsUpDown size={12} className="shrink-0 text-zinc-500" />
@@ -160,14 +160,14 @@ export const Combobox = ({
         }}
         onBlur={close}
         onKeyDown={onKeyDown}
-        className="w-full px-2 py-1 text-sm font-bold bg-white border-black border-[1px] outline-none"
+        className="w-full px-2 py-1 text-sm font-bold bg-white border-line border-[1px] rounded-b-none outline-none"
       />
 
       <ul
         id={listId}
         role="listbox"
         aria-label={label}
-        className="absolute z-50 left-0 top-full w-full max-h-[50vh] overflow-y-auto bg-white border-black border-x-[1px] border-b-[1px] shadow-lg"
+        className="absolute z-50 left-0 top-full w-full max-h-[50vh] overflow-y-auto bg-white border-line border-x-[1px] border-b-[1px] rounded-b shadow-lg"
       >
         {!!action && (
           <li
@@ -178,7 +178,7 @@ export const Combobox = ({
               close();
               action.onSelect();
             }}
-            className="sticky top-0 flex items-center justify-between gap-2 px-2 py-2 text-sm font-bold cursor-pointer bg-[#f1f7fe] border-[#2563eb] border-b-[1px] hover:bg-[#2563eb] hover:text-white"
+            className="sticky top-0 flex items-center justify-between gap-2 px-2 py-2 text-sm font-bold cursor-pointer bg-accent-soft border-accent border-b-[1px] hover:bg-accent hover:text-white"
           >
             {action.label}
             <ArrowRight size={14} className="shrink-0" />
@@ -198,7 +198,7 @@ export const Combobox = ({
             onMouseEnter={() => setActiveIndex(index)}
             onClick={() => select(option)}
             className={`px-2 py-1.5 cursor-pointer border-zinc-200 border-b-[1px] ${
-              index === activeIndex ? "bg-[#2563eb] text-white" : ""
+              index === activeIndex ? "bg-accent text-white" : ""
             }`}
           >
             <p className={`text-sm ${option.id === value ? "font-bold" : ""}`}>

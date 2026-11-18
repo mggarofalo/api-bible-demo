@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/NavBar";
 import { Suspense } from "react";
 import PageLoader from "@/components/PageLoader";
+import { INITIAL_SETTINGS_SCRIPT } from "@/components/NavControls";
 
 const ubuntu = Ubuntu({
   subsets: ["latin"],
@@ -39,8 +40,12 @@ export default function RootLayout({
       className={`${ubuntu.className} min-h-full antialiased w-[100vw] `}
       suppressHydrationWarning
     >
+      <head>
+        {/* Sets the theme and the help setting before the page shows */}
+        <script dangerouslySetInnerHTML={{ __html: INITIAL_SETTINGS_SCRIPT }} />
+      </head>
       <body className="w-full h-full flex flex-col items-center">
-        <div className="max-w-full md:max-w-[800px] flex flex-col border-black border-l-[1px] border-r-[1px] pb-[20vh]">
+        <div className="max-w-full md:max-w-[800px] flex flex-col border-line border-l-[1px] border-r-[1px] pb-[20vh]">
           <Suspense fallback={<PageLoader />}>
             <Navbar />
             {children}

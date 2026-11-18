@@ -2,20 +2,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { LinkButton } from "./LinkButton";
 import { MobileNavbar } from "./MobileNavBar";
+import { NavControls } from "./NavControls";
 
 /**
  * API.Bible nav bar that includes links to other helpful pages
  */
 export const Navbar = () => {
   return (
-    <nav className="relative w-full border-black border-b-[1px] p-4">
+    <nav className="relative w-full border-line border-b-[1px] p-4">
       <div className="w-full flex gap-2 items-stretch justify-between">
         <div className="flex items-center">
           <Link href="/" prefetch={false}>
             <Image
               src="/assets/api-logo.svg"
               alt="API.Bible"
-              className="mr-6 cursor-pointer w-[133px] min-w-[100px]"
+              className="mr-6 cursor-pointer w-[133px] min-w-[100px] dark:invert"
               width={0}
               height={0}
               priority
@@ -23,6 +24,8 @@ export const Navbar = () => {
           </Link>
         </div>
 
+        <div className="flex items-center gap-2">
+        <NavControls />
         <div className="hidden md:flex gap-2 sm:justify-center md:justify-end items-center">
           <LinkButton
             title="Source Code"
@@ -70,6 +73,7 @@ export const Navbar = () => {
               />
             </div>
           </MobileNavbar>
+        </div>
         </div>
       </div>
     </nav>

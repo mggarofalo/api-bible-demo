@@ -8,7 +8,7 @@ type TextSectionProps = {
 export const TextSection = ({ children, className = "" }: TextSectionProps) => {
   return (
     <div
-      className={`w-full p-12 border-black border-b-[1px] flex flex-col gap-4 ${className}`}
+      className={`w-full p-12 border-line border-b-[1px] flex flex-col gap-4 ${className}`}
     >
       {children}
     </div>

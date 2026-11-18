@@ -150,7 +150,7 @@ export default async function SearchPage(props: SearchPageProps) {
       {!!search && (
         <>
           <div className="w-full h-8" />
-          <div className="flex items-end border-black border-b-[1px] px-0 sm:px-8 sticky top-[-1px] bg-white">
+          <div className="flex items-end border-line border-b-[1px] px-0 sm:px-8 sticky top-[-1px] bg-white">
             <div className="flex flex-col border-x-[1px] border-t-[1px] px-4 py-2">
               <p>
                 Query: <b>{`"${query}"`}</b>

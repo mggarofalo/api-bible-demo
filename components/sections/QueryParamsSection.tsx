@@ -55,11 +55,11 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
   const changed = (param: QueryParam) => param.value !== param.defaultValue;
   const boxClass = (param: QueryParam) =>
     `text-sm font-bold bg-white border-[1px] ${
-      changed(param) ? "border-[#2563eb] text-[#2563eb]" : "border-black"
+      changed(param) ? "border-accent text-accent" : "border-line"
     }`;
 
   return (
-    <div className="w-full flex items-stretch border-black border-b-[1px]">
+    <div className="w-full flex items-stretch border-line border-b-[1px]">
       <Spacer />
       <div className="grow min-w-0 px-4 py-3">
         <h6 className="flex items-center gap-2 mb-2 text-sm font-bold">
@@ -73,7 +73,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                 <label
                   key={param.name}
                   className={`flex items-center gap-1.5 py-1 font-mono text-xs cursor-pointer ${
-                    changed(param) ? "text-[#2563eb] font-bold" : "text-zinc-600"
+                    changed(param) ? "text-accent font-bold" : "text-zinc-600"
                   }`}
                 >
                   <input
@@ -82,7 +82,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                     onChange={(event) =>
                       onChange(param, String(event.target.checked))
                     }
-                    className="w-4 h-4 accent-[#2563eb] cursor-pointer"
+                    className="w-4 h-4 accent-accent cursor-pointer"
                   />
                   {param.name}
                 </label>
@@ -99,7 +99,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                     <select
                       value={param.value}
                       onChange={(event) => onChange(param, event.target.value)}
-                      className={`appearance-none w-full pl-2 pr-7 py-1 cursor-pointer hover:bg-[#f1f7fe] ${boxClass(param)}`}
+                      className={`appearance-none w-full pl-2 pr-7 py-1 cursor-pointer hover:bg-accent-soft ${boxClass(param)}`}
                     >
                       {param.options.map((option) => (
                         <option key={option} value={option}>
@@ -127,7 +127,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                         onChange(param, event.currentTarget.value.trim());
                       }
                     }}
-                    className={`w-40 px-2 py-1 outline-none placeholder:font-normal placeholder:text-zinc-400 focus:border-[#2563eb] ${boxClass(param)}`}
+                    className={`w-40 px-2 py-1 outline-none placeholder:font-normal placeholder:text-zinc-400 focus:border-accent ${boxClass(param)}`}
                   />
                 )}
               </label>

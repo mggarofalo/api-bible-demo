@@ -28,7 +28,7 @@ export const HeaderSection = ({
 
   return (
     <div className="w-full flex flex-col">
-      <div className="w-full flex items-stretch border-black border-b-[1px] sm:pr-4">
+      <div className="w-full flex items-stretch border-line border-b-[1px] sm:pr-4">
         <Spacer />
         <div className="flex flex-col px-4 py-12 grow">
           <BibleBreadcrumbs fallback={<Breadcrumbs items={breadcrumbs} />} />

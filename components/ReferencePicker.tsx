@@ -89,7 +89,7 @@ const Select = ({
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value)}
-      className="appearance-none w-full pl-2 pr-7 py-1 text-sm font-bold bg-white border-black border-[1px] cursor-pointer hover:bg-[#f1f7fe] disabled:cursor-default disabled:text-zinc-400 disabled:border-zinc-300 disabled:hover:bg-white"
+      className="appearance-none w-full pl-2 pr-7 py-1 text-sm font-bold bg-white border-line border-[1px] cursor-pointer hover:bg-accent-soft disabled:cursor-default disabled:text-zinc-400 disabled:border-zinc-300 disabled:hover:bg-white"
     >
       {none !== undefined && <option value="">{none}</option>}
       {options.map((option) => (
@@ -253,12 +253,12 @@ export const ReferencePanel = ({ onOpen }: ReferencePanelProps) => {
             href={target.href}
             prefetch={false}
             onClick={onOpen}
-            className="px-4 py-1 text-sm font-bold bg-[#f1f7fe] border-[#2563eb] border-[1px] hover:bg-[#2563eb] hover:text-white"
+            className="px-4 py-1 rounded text-sm font-bold bg-accent-soft border-accent border-[1px] hover:bg-accent hover:text-white"
           >
             Open
           </Link>
         ) : (
-          <span className="px-4 py-1 text-sm font-bold text-zinc-400 border-zinc-300 border-[1px]">
+          <span className="px-4 py-1 rounded text-sm font-bold text-zinc-400 border-zinc-300 border-[1px]">
             Open
           </span>
         )}
@@ -319,14 +319,14 @@ export const ReferencePicker = () => {
         aria-expanded={open}
         aria-label={text ? `Reference: ${text}` : "Select a reference"}
         onClick={() => setOpenPath(open ? null : pathname)}
-        className="flex items-center gap-1 text-sm font-bold cursor-pointer border-b-[1px] border-dashed border-transparent hover:border-black"
+        className="flex items-center gap-1 text-sm font-bold cursor-pointer border-b-[1px] border-dashed border-transparent hover:border-line"
       >
         {text || "Select a reference"}
         <ChevronsUpDown size={12} className="shrink-0 text-zinc-500" />
       </button>
 
       {open && (
-        <div className="absolute z-50 left-0 top-[calc(100%+4px)] w-max max-w-[92vw] overflow-x-auto p-3 bg-white border-black border-[1px] shadow-lg">
+        <div className="absolute z-50 left-0 top-[calc(100%+4px)] w-max max-w-[92vw] overflow-x-auto p-3 bg-white border-line border-[1px] rounded-md shadow-lg">
           <ReferencePanel onOpen={() => setOpenPath(null)} />
         </div>
       )}

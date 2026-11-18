@@ -88,9 +88,9 @@ export const BibleSidebar = () => {
 
   const rowClass = (href: string, inPath: boolean) =>
     pathname === href
-      ? "bg-[#2563eb] text-white"
+      ? "bg-accent text-white"
       : inPath
-        ? "bg-[#f1f7fe] font-bold"
+        ? "bg-accent-soft font-bold"
         : "hover:bg-zinc-100";
 
   const buttonLabel = pinned
@@ -111,7 +111,7 @@ export const BibleSidebar = () => {
           //When the user removes the pin, close the sidebar immediately
           setHovered(false);
         }}
-        className="fixed top-[76px] min-[900px]:top-2 left-0 min-[900px]:left-2 z-50 flex items-center justify-center w-8 h-8 bg-black text-white border-white border-[1px] cursor-pointer hover:bg-[#2563eb]"
+        className="fixed top-[76px] min-[900px]:top-2 left-0 min-[900px]:left-2 z-50 flex items-center justify-center w-8 h-8 bg-black text-white border-white border-[1px] cursor-pointer hover:bg-accent"
       >
         {pinned ? (
           <ChevronsLeft size={18} />
@@ -125,9 +125,9 @@ export const BibleSidebar = () => {
       {open && (
         <aside
           aria-label="Books, chapters and verses"
-          className="fixed top-0 bottom-0 left-0 z-40 flex flex-col w-[280px] max-w-[85vw] bg-white border-black border-r-[1px] shadow-xl"
+          className="fixed top-0 bottom-0 left-0 z-40 flex flex-col w-[280px] max-w-[85vw] bg-white border-line border-r-[1px] shadow-xl"
         >
-          <div className="flex items-center pl-14 pr-4 min-h-12 border-black border-b-[1px] max-[899px]:pl-4">
+          <div className="flex items-center pl-14 pr-4 min-h-12 border-line border-b-[1px] max-[899px]:pl-4">
             <Link
               href={`/bibles/${bibleId}/books`}
               prefetch={false}
@@ -236,10 +236,10 @@ export const BibleSidebar = () => {
                                         href={`/bibles/${bibleId}/verses/${verse.id}`}
                                         prefetch={false}
                                         title={verse.id}
-                                        className={`py-1 text-xs text-center border-[1px] ${
+                                        className={`py-1 text-xs text-center rounded border-[1px] ${
                                           verse.id === current.verseId
-                                            ? "bg-[#2563eb] text-white border-[#2563eb]"
-                                            : "border-zinc-300 hover:bg-[#2563eb] hover:text-white hover:border-[#2563eb]"
+                                            ? "bg-accent text-white border-accent"
+                                            : "border-zinc-300 hover:bg-accent hover:text-white hover:border-accent"
                                         }`}
                                       >
                                         {verse.number}

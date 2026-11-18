@@ -6,6 +6,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The `dark:` variant follows the `dark` class on <html>, which the theme button sets */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Colours of the demo. Use these in class names: `bg-accent`, `bg-accent-soft`, `border-line`. */
+@theme {
+  --color-accent: #2563eb;
+  --color-accent-soft: #eff6ff;
+  --color-line: #cdd2da;
+}
+
+/*
+ * Dark theme. The components use the usual Tailwind colours (`bg-white`, `text-zinc-500`, ...).
+ * This block gives those colours dark values, so no component has theme-specific classes.
+ */
+.dark {
+  color-scheme: dark;
+  --color-white: #0f1216;
+  --color-black: #e7e9ec;
+  --color-zinc-50: #151a20;
+  --color-zinc-100: #1b2129;
+  --color-zinc-200: #2a313b;
+  --color-zinc-300: #3a424e;
+  --color-zinc-400: #6f7885;
+  --color-zinc-500: #9aa3af;
+  --color-zinc-600: #b6bdc7;
+  --color-zinc-800: #d3d8de;
+  --color-accent: #7aa7ff;
+  --color-accent-soft: #162238;
+  --color-line: #343b46;
+}
+
+body {
+  background: var(--color-white);
+  color: var(--color-black);
+}
+
+/* The Help button in the nav bar and the close button of a help block set this attribute */
+html[data-help="collapsed"] .help-block {
+  display: none;
+}
+
 html,
 body {
   height: 100%;
@@ -80,6 +121,20 @@ body {
     box-sizing: border-box;
     padding: 0;
     margin: 0;
+  }
+
+  /* Lines are soft grey unless a class gives a different colour */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-line);
+  }
+
+  /* Controls have gently rounded corners */
+  button,
+  input,
+  select {
+    border-radius: 0.25rem;
   }
 }
 

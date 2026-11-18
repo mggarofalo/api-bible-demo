@@ -5,7 +5,7 @@ type SpacerProps = {
 export const Spacer = ({ border = "r" }: SpacerProps) => {
   return (
     <div
-      className={`hidden sm:block w-[32px] h-full border-black border-${border}-[1px]`}
+      className={`hidden sm:block w-[32px] h-full border-line border-${border}-[1px]`}
     />
   );
 };
