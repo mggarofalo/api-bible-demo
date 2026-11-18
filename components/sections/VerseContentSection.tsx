@@ -4,6 +4,8 @@ import { ArrowLeftCircle, ArrowRightCircle } from "lucide-react";
 
 type VerseContentProps = {
   linkBase?: string;
+  /** Query string for the "Previous" and "Next" links, so they keep the query parameters of the page */
+  query?: string;
   verseContent: Verse | Chapter | Section;
   title?: string;
 };
@@ -11,12 +13,21 @@ type VerseContentProps = {
 /**
  * Renders verse content returned from the API. Leverages the [scripture-styles](https://npmjs.org/package/scripture-styles) `npm`
  * package for styling.
+ *
+ * The `content-type` query parameter of the request controls the format of the content:
+ *   - `html`: shown as formatted text
+ *   - `text`: shown as plain text
+ *   - `json`: shown as the JSON structure that the API gave
  */
 export const VerseContentSection = ({
   linkBase,
+  query = "",
   title = "Verses",
   verseContent: { previous, next, content, verseCount },
 }: VerseContentProps) => {
+  //HTML content starts with a tag. Plain text does not.
+  const isHtml = typeof content === "string" && /^\s*</.test(content);
+
   return (
     <>
       <div className="w-full h-12" />
@@ -34,14 +45,14 @@ export const VerseContentSection = ({
               <>
                 <LinkButton
                   className="sm:hidden border-x-[1px] border-t-[1px] h-full"
-                  href={`${linkBase}/${previous.id}`}
+                  href={`${linkBase}/${previous.id}${query}`}
                   title=""
                 >
                   <ArrowLeftCircle size={16} />
                 </LinkButton>
                 <LinkButton
                   className="hidden sm:flex border-x-[1px] border-t-[1px] h-full"
-                  href={`${linkBase}/${previous.id}`}
+                  href={`${linkBase}/${previous.id}${query}`}
                   title="Previous"
                 />
               </>
@@ -50,14 +61,14 @@ export const VerseContentSection = ({
               <>
                 <LinkButton
                   className={`sm:hidden border-r-[1px] border-t-[1px] h-full ${!previous?.id ? "border-l-[1px]" : ""}`}
-                  href={`${linkBase}/${next.id}`}
+                  href={`${linkBase}/${next.id}${query}`}
                   title=""
                 >
                   <ArrowRightCircle size={16} />
                 </LinkButton>
                 <LinkButton
                   className={`hidden sm:flex border-r-[1px] border-t-[1px] h-full ${!previous?.id ? "border-l-[1px]" : ""}`}
-                  href={`${linkBase}/${next.id}`}
+                  href={`${linkBase}/${next.id}${query}`}
                   title="Next"
                 />
               </>
@@ -67,10 +78,18 @@ export const VerseContentSection = ({
       </div>
       <div className="w-full flex flex-col items-center border-b-[1px]">
         <div className="w-full">
-          <div
-            className="scripture-styles p-4"
-            dangerouslySetInnerHTML={{ __html: content! }}
-          />
+          {isHtml ? (
+            <div
+              className="scripture-styles p-4"
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
+          ) : (
+            <pre className="p-4 whitespace-pre-wrap break-words">
+              {typeof content === "string"
+                ? content
+                : JSON.stringify(content, null, 2)}
+            </pre>
+          )}
         </div>
       </div>
     </>
