@@ -4,7 +4,7 @@ import type { QueryParam } from "@/utils/queryParams";
 import { ChevronDown, Loader } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { useBibleNav } from "../BibleNav";
+import { useScopedBibles } from "../BibleNav";
 import { Combobox } from "../Combobox";
 import { Spacer } from "../Spacer";
 import { X } from "lucide-react";
@@ -33,7 +33,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const bibles = useBibleNav()?.bibles ?? [];
+  const bibles = useScopedBibles();
 
   const onChange = (param: QueryParam, value: string) => {
     if (value === param.value) {

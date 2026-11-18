@@ -80,24 +80,55 @@ export const BibleBreadcrumbs = ({ fallback }: BibleBreadcrumbsProps) => {
   );
 };
 
-type EndpointPathProps = {
-  /** Shown on pages that are not part of a Bible */
-  fallback: string;
+//The placeholder name of the ID that follows each of these parts of a route
+const ID_NAMES: Record<string, string> = {
+  bibles: "bibleId",
+  books: "bookId",
+  chapters: "chapterId",
+  verses: "verseId",
+  passages: "passageId",
+  sections: "sectionId",
 };
 
 /**
- * Shows the path of the API endpoint that the current page calls. The paths of this
- * application agree with the paths of the API, so the path comes from the URL of the page.
+ * Shows the route of the API endpoint that the current page calls, as the main heading
+ * of the page. The routes of this application agree with the routes of the API, so the
+ * route comes from the URL of the page.
+ *
+ * Each ID in the route has its placeholder name below it, for example `{bibleId}`, to
+ * show the syntax of the route: `/bibles/{bibleId}/verses/{verseId}`.
  */
-export const EndpointPath = ({ fallback }: EndpointPathProps) => {
-  const nav = useBibleNav();
+export const RouteHero = () => {
   const pathname = usePathname();
-
-  if (!nav) {
-    return <p className="text-zinc-500">{fallback}</p>;
-  }
+  const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent);
 
   return (
-    <p className="font-mono text-sm text-zinc-500 break-all">{pathname}</p>
+    <h3
+      aria-label={`GET ${pathname}`}
+      className="flex flex-wrap items-start gap-y-2 font-mono text-xl sm:text-2xl font-bold leading-tight"
+    >
+      <span className="mr-3 mt-1 px-2 py-0.5 rounded text-sm text-accent bg-accent-soft border-accent/40 border-[1px]">
+        GET
+      </span>
+      {parts.map((part, index) => {
+        const idName = ID_NAMES[parts[index - 1]];
+        //A part is an ID when the part before it is a collection, and it is in an odd position (`/bibles/{bibleId}/books/{bookId}`)
+        const isId = !!idName && index % 2 === 1;
+
+        return (
+          <span key={index} className="flex items-start">
+            <span className="text-zinc-400">/</span>
+            {isId ? (
+              <span className="flex flex-col">
+                <span className="text-accent break-all">{part}</span>
+                <span className="text-xs font-normal text-zinc-500">{`{${idName}}`}</span>
+              </span>
+            ) : (
+              <span>{part}</span>
+            )}
+          </span>
+        );
+      })}
+    </h3>
   );
 };

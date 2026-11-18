@@ -29,7 +29,7 @@ export type PageSearchParams = Record<string, string | string[] | undefined>;
 
 const BOOLEAN = ["true", "false"] as const;
 //Longest value that a typed parameter can have
-const MAX_TEXT_LENGTH = 200;
+const MAX_TEXT_LENGTH = 500;
 
 /** A true/false parameter, shown as a checkbox */
 export const flagParam = (
@@ -41,7 +41,8 @@ export const flagParam = (
 export const textParam = (
   name: string,
   placeholder: string,
-): ParamDefinition => ({ name, options: [], defaultValue: "", placeholder });
+  defaultValue = "",
+): ParamDefinition => ({ name, options: [], defaultValue, placeholder });
 
 /**
  * Query parameters of the endpoints that give verse text (chapters, verses, passages

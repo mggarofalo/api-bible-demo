@@ -11,6 +11,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { SELECTED_BIBLE_IDS } from "@/utils/bibleScope";
+import { BibleScopeSwitch, useBibleScope } from "./BibleScope";
 import { Combobox } from "./Combobox";
 
 export type NavBible = {
@@ -144,12 +146,31 @@ export const chapterName = (number: string) =>
   number === "intro" ? "Introduction" : `Chapter ${number}`;
 
 /**
- * Drop-down list of all Bibles. Shows the abbreviation of the current Bible as text.
- * Opens the page of the Bible that the user selects. The first item opens the page
- * that lists all Bibles.
+ * Returns the Bibles for the lists of the demo: the short list or all Bibles, as the
+ * Bible scope says (see utils/bibleScope.ts). The current Bible is always in the list.
+ */
+export const useScopedBibles = () => {
+  const nav = useBibleNav();
+  const [scope] = useBibleScope();
+
+  if (!nav) {
+    return [];
+  }
+  return scope === "all"
+    ? nav.bibles
+    : nav.bibles.filter(
+        ({ id }) => SELECTED_BIBLE_IDS.includes(id) || id === nav.bibleId,
+      );
+};
+
+/**
+ * Drop-down list of Bibles. Shows the abbreviation of the current Bible as text.
+ * Opens the page of the Bible that the user selects. On top of the list are a switch
+ * between the short list and all Bibles, and a link to the Bibles page.
  */
 export const BiblePicker = () => {
   const nav = useBibleNav();
+  const bibles = useScopedBibles();
   const router = useRouter();
 
   if (!nav) {
@@ -163,14 +184,20 @@ export const BiblePicker = () => {
       selectedText={
         nav.bibles.find(({ id }) => id === nav.bibleId)?.abbreviation
       }
-      options={nav.bibles.map((bible) => ({
+      options={bibles.map((bible) => ({
         id: bible.id,
         label: bible.name,
         detail: `${bible.abbreviation} · ${bible.language}`,
       }))}
       onSelect={(id) => router.push(`/bibles/${id}`)}
+      header={
+        <>
+          Bibles in the list
+          <BibleScopeSwitch />
+        </>
+      }
       action={{
-        label: "Show all Bibles",
+        label: "Open the Bibles page",
         onSelect: () => router.push("/bibles"),
       }}
       emptyText="No Bible has this text."

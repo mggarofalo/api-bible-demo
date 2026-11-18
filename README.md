@@ -97,7 +97,7 @@ npm run dev
 
 4. Your application should now be running on `localhost:3000`
 
-This fork shows all the Bibles that your API key can access. The list in [demoBibles.ts](./utils/demoBibles.ts) now only records which Bibles have section headings.
+The lists of Bibles show a short list by default: the Bibles in [demoBibles.ts](./utils/demoBibles.ts). A switch on the Bibles page, and in the list of Bibles in the header, changes to all the Bibles that your API key can access. A Bible that is not in the short list stays available by its URL.
 
 ### Future Updates
 

@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowRight, ChevronsUpDown } from "lucide-react";
-import { KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  KeyboardEvent,
+  ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 export type ComboboxOption = {
   id: string;
@@ -21,6 +28,8 @@ type ComboboxProps = {
   selectedText?: string;
   /** An item at the top of the list that is not an option, for example a link to a full page */
   action?: { label: string; onSelect: () => void };
+  /** Controls shown on top of the list, for example a switch that changes the options */
+  header?: ReactNode;
   /** Text shown in the list when no option agrees with the filter */
   emptyText?: string;
 };
@@ -41,6 +50,7 @@ export const Combobox = ({
   onSelect,
   selectedText,
   action,
+  header,
   emptyText = "No results.",
 }: ComboboxProps) => {
   const listId = useId();
@@ -169,6 +179,16 @@ export const Combobox = ({
         aria-label={label}
         className="absolute z-50 left-0 top-full w-full max-h-[50vh] overflow-y-auto bg-white border-line border-x-[1px] border-b-[1px] rounded-b shadow-lg"
       >
+        {!!header && (
+          <li
+            role="presentation"
+            //Keep the focus in the input. If not, the list closes before the click.
+            onMouseDown={(event) => event.preventDefault()}
+            className="flex items-center justify-between gap-2 px-2 py-2 text-xs text-zinc-500 border-line border-b-[1px]"
+          >
+            {header}
+          </li>
+        )}
         {!!action && (
           <li
             role="presentation"
