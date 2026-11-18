@@ -1,16 +1,16 @@
 "use client";
 
-import { useStoredFlag } from "@/utils/useStoredFlag";
-import { CircleHelp, Moon, Sun } from "lucide-react";
-import { useEffect, useSyncExternalStore } from "react";
+import { Moon, Sun } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
+/** Name of the browser value that collapses the help cards of all pages (see InfoSection) */
 export const HELP_COLLAPSED_KEY = "help-collapsed";
 const THEME_KEY = "theme";
 const THEME_EVENT = "theme-change";
 
 /**
  * Runs before the page shows, so the page does not start in the incorrect theme or
- * with a help block that the user closed. The root layout puts it in the `<head>`.
+ * with open help cards that the user collapsed. The root layout puts it in the `<head>`.
  *
  * Theme: the selection of the user if there is one, and if not, the setting of the system.
  */
@@ -52,50 +52,22 @@ const useDarkTheme = () => {
   return [dark, setDark] as const;
 };
 
-const buttonClass =
-  "flex items-center justify-center w-9 h-9 border-line border-[1px] cursor-pointer hover:bg-accent-soft";
-
 /**
- * Buttons in the nav bar for two settings that apply to all pages:
- *   - Help: shows or hides the help block of each page. The browser keeps the
- *     selection in the `help-collapsed` value.
- *   - Theme: changes between the light theme and the dark theme.
+ * Button in the nav bar that changes between the light theme and the dark theme
  */
 export const NavControls = () => {
-  const [helpCollapsed, setHelpCollapsed] = useStoredFlag(HELP_COLLAPSED_KEY);
   const [dark, setDark] = useDarkTheme();
-
-  //The stylesheet hides the help blocks when this attribute is "collapsed" (see globals.css)
-  useEffect(() => {
-    document.documentElement.dataset.help = helpCollapsed
-      ? "collapsed"
-      : "shown";
-  }, [helpCollapsed]);
-
-  const helpLabel = helpCollapsed ? "Show the help" : "Hide the help";
   const themeLabel = dark ? "Use the light theme" : "Use the dark theme";
 
   return (
-    <>
-      <button
-        type="button"
-        aria-label={helpLabel}
-        aria-pressed={!helpCollapsed}
-        title={helpLabel}
-        onClick={() => setHelpCollapsed(!helpCollapsed)}
-        className={`${buttonClass} ${helpCollapsed ? "text-zinc-500" : "bg-accent-soft text-accent"}`}
-      >
-        <CircleHelp size={18} />
-      </button>
-      <button
-        type="button"
-        aria-label={themeLabel}
-        title={themeLabel}
-        onClick={() => setDark(!dark)}
-        className={buttonClass}
-      >
-        {dark ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
-    </>
+    <button
+      type="button"
+      aria-label={themeLabel}
+      title={themeLabel}
+      onClick={() => setDark(!dark)}
+      className="flex items-center justify-center w-9 h-9 border-line border-[1px] cursor-pointer hover:bg-accent-soft"
+    >
+      {dark ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
   );
 };

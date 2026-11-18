@@ -42,9 +42,63 @@ body {
   color: var(--color-black);
 }
 
-/* The Help button in the nav bar and the close button of a help block set this attribute */
-html[data-help="collapsed"] .help-block {
+/*
+ * Help cards (see InfoSection). The `help-collapsed` value in the browser sets this
+ * attribute. A collapsed card shows only its title.
+ */
+html[data-help="collapsed"] .help-body {
   display: none;
+}
+html[data-help="collapsed"] .help-chevron {
+  rotate: 0deg;
+}
+
+/*
+ * Folder tabs: the labels and links that sit on top of a section, on its top line.
+ * A tab has round corners at the top. At the bottom, it curves out into the line,
+ * as the tab of a paper folder does.
+ *
+ * Put tabs in a row with a gap of 12px or more (`gap-3`), so the curves have space.
+ */
+.folder-tab {
+  --tab-color: var(--color-zinc-200);
+  --tab-radius: 8px;
+  position: relative;
+  border-radius: var(--tab-radius) var(--tab-radius) 0 0;
+  background: var(--tab-color);
+}
+.folder-tab::before,
+.folder-tab::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: var(--tab-radius);
+  height: var(--tab-radius);
+}
+/* Each curve is a square with a circle cut out of the corner that is away from the tab */
+.folder-tab::before {
+  left: calc(-1 * var(--tab-radius));
+  background: radial-gradient(
+    circle at 0 0,
+    transparent calc(var(--tab-radius) - 0.5px),
+    var(--tab-color) var(--tab-radius)
+  );
+}
+.folder-tab::after {
+  right: calc(-1 * var(--tab-radius));
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent calc(var(--tab-radius) - 0.5px),
+    var(--tab-color) var(--tab-radius)
+  );
+}
+/* A tab that is a link */
+.folder-tab-link {
+  --tab-color: color-mix(in srgb, var(--color-accent) 16%, var(--color-white));
+}
+.folder-tab-link:hover {
+  --tab-color: var(--color-accent);
+  color: var(--color-white);
 }
 
 html,

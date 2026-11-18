@@ -150,8 +150,8 @@ export default async function SearchPage(props: SearchPageProps) {
       {!!search && (
         <>
           <div className="w-full h-8" />
-          <div className="flex items-end border-line border-b-[1px] px-0 sm:px-8 sticky top-[-1px] bg-white">
-            <div className="flex flex-col border-x-[1px] border-t-[1px] px-4 py-2">
+          <div className="flex items-end gap-3 border-line border-b-[1px] px-3 sm:px-8 sticky top-[-1px] bg-white">
+            <div className="folder-tab flex flex-col px-4 py-2">
               <p>
                 Query: <b>{`"${query}"`}</b>
               </p>
@@ -176,14 +176,16 @@ export default async function SearchPage(props: SearchPageProps) {
             {page > 0 && !passages.length && (
               <>
                 <LinkButton
-                  className="sm:hidden border-x-[1px] border-t-[1px] h-full"
+                  tab
+                  className="sm:hidden"
                   href={pageHref(page - 1)}
                   title=""
                 >
                   <ArrowLeftCircle size={16} />
                 </LinkButton>
                 <LinkButton
-                  className="hidden sm:flex border-x-[1px] border-t-[1px] h-full"
+                  tab
+                  className="hidden sm:flex"
                   href={pageHref(page - 1)}
                   title="Previous"
                 />
@@ -192,14 +194,16 @@ export default async function SearchPage(props: SearchPageProps) {
             {offset + verses.length < total && (
               <>
                 <LinkButton
-                  className={`sm:hidden border-r-[1px] border-t-[1px] h-full ${page > 0 ? "" : "border-l-[1px]"}`}
+                  tab
+                  className="sm:hidden"
                   href={pageHref(page + 1)}
                   title=""
                 >
                   <ArrowRightCircle size={16} />
                 </LinkButton>
                 <LinkButton
-                  className={`hidden sm:flex border-r-[1px] border-t-[1px] h-full ${page > 0 ? "" : "border-l-[1px]"}`}
+                  tab
+                  className="hidden sm:flex"
                   href={pageHref(page + 1)}
                   title="Next"
                 />

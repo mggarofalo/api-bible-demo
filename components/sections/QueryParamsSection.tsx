@@ -4,7 +4,10 @@ import type { QueryParam } from "@/utils/queryParams";
 import { ChevronDown, Loader } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import { useBibleNav } from "../BibleNav";
+import { Combobox } from "../Combobox";
 import { Spacer } from "../Spacer";
+import { X } from "lucide-react";
 
 //A parameter with only the values `true` and `false` shows as a checkbox
 const isBoolean = ({ options }: QueryParam) =>
@@ -18,6 +21,7 @@ type QueryParamsSectionProps = {
  * Shows the query parameters of the API request:
  *   - A true/false parameter is a checkbox.
  *   - A parameter with a fixed set of values is a list.
+ *   - A parameter that is a list of Bibles shows the selected Bibles, and a list to add one.
  *   - Other parameters are text boxes. Push Enter, or go out of the box, to apply the text.
  *
  * When the user changes a value, the value goes into the URL of the page. The server
@@ -29,6 +33,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  const bibles = useBibleNav()?.bibles ?? [];
 
   const onChange = (param: QueryParam, value: string) => {
     if (value === param.value) {
@@ -86,6 +91,63 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                   />
                   {param.name}
                 </label>
+              );
+            }
+
+            if (param.kind === "bibles") {
+              const selected = param.value.split(",").filter(Boolean);
+              const setSelected = (ids: string[]) =>
+                onChange(param, ids.join(","));
+
+              return (
+                <div
+                  key={param.name}
+                  className="basis-full flex flex-col gap-1 pt-2 mt-1 border-zinc-200 border-t-[1px]"
+                >
+                  <p className="font-mono text-xs text-zinc-500">
+                    {param.name}
+                  </p>
+                  {!!param.description && (
+                    <p className="text-sm">{param.description}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selected.map((id) => {
+                      const bible = bibles.find((item) => item.id === id);
+                      return (
+                        <span
+                          key={id}
+                          title={id}
+                          className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded text-sm font-bold text-accent bg-accent-soft border-accent/40 border-[1px]"
+                        >
+                          {bible ? bible.abbreviation || bible.name : id}
+                          <button
+                            type="button"
+                            aria-label={`Remove ${bible?.name ?? id}`}
+                            onClick={() =>
+                              setSelected(selected.filter((item) => item !== id))
+                            }
+                            className="p-0.5 cursor-pointer hover:bg-accent hover:text-white"
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                    <Combobox
+                      label="Bible to add"
+                      selectedText="Add a Bible"
+                      options={bibles
+                        .filter(({ id }) => !selected.includes(id))
+                        .map((bible) => ({
+                          id: bible.id,
+                          label: bible.name,
+                          detail: `${bible.abbreviation} · ${bible.language}`,
+                        }))}
+                      onSelect={(id) => setSelected([...selected, id])}
+                      emptyText="No Bible has this text."
+                    />
+                  </div>
+                </div>
               );
             }
 

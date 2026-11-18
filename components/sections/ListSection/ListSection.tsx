@@ -17,11 +17,11 @@ export const ListSection = ({
   return (
     <div className="w-full flex flex-col">
       {!hideHeader && (
-        <div className="flex items-end border-line border-b-[1px] px-8 pt-12">
-          <h3 className="text-xl font-bold px-4 py-2 border-line border-x-[1px] border-t-[1px]">
+        <div className="flex items-end gap-3 border-line border-b-[1px] px-3 sm:px-8 pt-12">
+          <h3 className="folder-tab text-xl font-bold px-4 py-2">
             {title}
           </h3>
-          <h5 className="text-lg px-4 py-2 border-line border-r-[1px] border-t-[1px]">
+          <h5 className="folder-tab text-lg px-4 py-2">
             {items.length}
           </h5>
         </div>

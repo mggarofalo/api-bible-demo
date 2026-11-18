@@ -45,7 +45,8 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: INITIAL_SETTINGS_SCRIPT }} />
       </head>
       <body className="w-full h-full flex flex-col items-center">
-        <div className="max-w-full md:max-w-[800px] flex flex-col border-line border-l-[1px] border-r-[1px] pb-[20vh]">
+        {/* The page has a fixed width at each screen size, so it does not change with its content */}
+        <div className="w-full max-w-full md:w-[768px] xl:w-[960px] flex flex-col border-line border-l-[1px] border-r-[1px] pb-[20vh]">
           <Suspense fallback={<PageLoader />}>
             <Navbar />
             {children}

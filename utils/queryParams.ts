@@ -10,6 +10,13 @@ export type QueryParam = {
   options: readonly string[];
   /** Example value, shown in the text box of a parameter that the user types */
   placeholder?: string;
+  /**
+   * `bibles`: the value is a list of Bible IDs with commas between them. The page shows
+   * a list of Bibles to select from, as an alternative to a text box.
+   */
+  kind?: "bibles";
+  /** One sentence that tells the user what the parameter does */
+  description?: string;
   /** Value that the page uses when the page URL does not give one */
   defaultValue: string;
   /** Value in use now */
@@ -52,8 +59,14 @@ export const contentParams = (
     { name: "include-chapter-numbers", options: BOOLEAN, defaultValue: "false" },
     { name: "include-verse-numbers", options: BOOLEAN, defaultValue: "true" },
     { name: "include-verse-spans", options: BOOLEAN, defaultValue: "true" },
-    //IDs of other Bibles, with commas between them. The response then includes the same content from those Bibles.
-    textParam("parallels", "9879dbb7cfe39e4d-01"),
+    {
+      name: "parallels",
+      options: [],
+      defaultValue: "",
+      kind: "bibles" as const,
+      description:
+        "Get the same content from other Bibles in the same request. The response has one more item for each Bible.",
+    },
   ].map((param) => ({
     ...param,
     defaultValue: defaults[param.name] ?? param.defaultValue,
