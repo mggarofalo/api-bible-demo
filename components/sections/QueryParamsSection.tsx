@@ -1,12 +1,15 @@
 "use client";
 
 import { getApiDefaults } from "@/utils/apiDefaults";
+import { findEndpoint } from "@/utils/apiReference";
 import type { QueryParam } from "@/utils/queryParams";
 import { ChevronDown, Loader } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { useScopedBibles } from "../BibleNav";
 import { Combobox } from "../Combobox";
+import { Tip } from "../EndpointNav";
+import { Markdown } from "../Markdown";
 import { Spacer } from "../Spacer";
 import { X } from "lucide-react";
 
@@ -24,6 +27,8 @@ type QueryParamsSectionProps = {
  *   - A parameter with a fixed set of values is a list.
  *   - A parameter that is a list of Bibles shows the selected Bibles, and a list to add one.
  *   - Other parameters are text boxes. Push Enter, or go out of the box, to apply the text.
+ *
+ * The name of each parameter has a help tip with its description from the API reference.
  *
  * A control is blue when its parameter is in the API request, that is, when its value
  * is not the default of the API. The "Defaults" link sets all the parameters to their
@@ -51,8 +56,10 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
     } else {
       query.set(param.name, value);
     }
-    //A different request has different results, so start at the first page of results
-    query.delete("page");
+    //A different request has different results, so start at the first result again
+    if (param.name !== "offset") {
+      query.delete("offset");
+    }
 
     const text = query.toString();
     startTransition(() => {
@@ -69,7 +76,6 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
     for (const { name } of params) {
       query.delete(name);
     }
-    query.delete("page");
 
     const text = query.toString();
     startTransition(() => {
@@ -77,6 +83,22 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
         scroll: false,
       });
     });
+  };
+
+  //The name of each parameter has a help tip: its description in the API reference
+  const reference = findEndpoint(pathname)?.endpoint.parameters ?? {};
+  const describe = (name: string) => reference[name]?.description;
+  const paramName = (name: string) => {
+    const description = describe(name);
+    return description ? (
+      <Tip tip={<Markdown inline text={description} />}>
+        <span className="cursor-help border-b-[1px] border-dotted border-current">
+          {name}
+        </span>
+      </Tip>
+    ) : (
+      name
+    );
   };
 
   //A control is blue when its parameter is in the API request. The request does not
@@ -123,7 +145,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                     }
                     className="w-4 h-4 accent-accent cursor-pointer"
                   />
-                  {param.name}
+                  {paramName(param.name)}
                 </label>
               );
             }
@@ -141,8 +163,10 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
                   <p className="font-mono text-xs text-zinc-500">
                     {param.name}
                   </p>
-                  {!!param.description && (
-                    <p className="text-sm">{param.description}</p>
+                  {!!describe(param.name) && (
+                    <p className="text-sm">
+                      <Markdown inline text={describe(param.name)!} />
+                    </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
                     {selected.map((id) => {
@@ -188,7 +212,7 @@ export const QueryParamsSection = ({ params }: QueryParamsSectionProps) => {
             return (
               <label key={param.name} className="flex flex-col gap-0.5">
                 <span className="font-mono text-xs text-zinc-500">
-                  {param.name}
+                  {paramName(param.name)}
                 </span>
                 {param.options.length ? (
                   <span className="relative">

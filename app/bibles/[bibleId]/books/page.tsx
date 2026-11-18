@@ -1,4 +1,3 @@
-import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
@@ -58,28 +57,7 @@ export default async function BooksListPage(props: BooksListPageProps) {
   return (
     <Page>
       <HeaderSection bible={bible} />
-      <InfoSection
-        title="How to Get the Books of a Bible"
-        url="https://rest.api.bible/v1/bibles/{bibleId}/books"
-        requestUrl={exchange?.request.url}
-        info={
-          <>
-            <Lead>
-              To get the list of books of a Bible, send a <Code>GET</Code>{" "}
-              request to this API endpoint. Put the <b>Bible ID</b> of the
-              applicable Bible in the URL. For more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/books">
-                Books Guide
-              </Guide>
-              .
-            </Lead>
-            <Note>
-              Use the <Code>include-chapters</Code> query parameter to get all
-              the books and chapters of the Bible in one request.
-            </Note>
-          </>
-        }
-      />
+      <InfoSection requestUrl={exchange?.request.url} />
 
       <QueryParamsSection params={queryParams} />
       <JSONSection json={body} exchange={exchange} />

@@ -1,4 +1,3 @@
-import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
@@ -36,35 +35,7 @@ export default async function SectionsListPage(props: SectionsListPageProps) {
     <Page>
       <HeaderSection bible={bible} />
 
-      <InfoSection
-        title="How to Get the Sections of a Chapter"
-        url="https://rest.api.bible/v1/bibles/{bibleId}/chapters/{chapterId}/sections"
-        requestUrl={exchange?.request.url}
-        info={
-          <>
-            <Lead>
-              To get the list of sections of a chapter, send a{" "}
-              <Code>GET</Code> request to this API endpoint. Put the{" "}
-              <b>Bible ID</b> and the <b>Chapter ID</b> in the URL. For more
-              information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/sections">
-                Sections Guide
-              </Guide>
-              .
-            </Lead>
-            <Note>
-              Some Bibles do not have sections. To find if a book has sections,
-              use the <Code>/books</Code> endpoint with the{" "}
-              <Code>include-chapters-and-sections</Code> query parameter. For
-              more information, refer to{" "}
-              <Guide href="https://docs.api.bible/guides/books#fetching-a-list-of-books-for-a-bible">
-                the list of books of a Bible
-              </Guide>
-              .
-            </Note>
-          </>
-        }
-      />
+      <InfoSection requestUrl={exchange?.request.url} />
 
       <JSONSection json={body} exchange={exchange} />
 

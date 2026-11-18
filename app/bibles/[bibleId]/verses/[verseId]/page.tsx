@@ -1,4 +1,3 @@
-import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
@@ -52,33 +51,7 @@ export default async function VersePage(props: VersePageProps) {
     <Page>
       <HeaderSection bible={bible} />
 
-      <InfoSection
-        title="How to Get One Verse"
-        url="https://rest.api.bible/v1/bibles/{bibleId}/verses/{verseId}"
-        requestUrl={exchange?.request.url}
-        info={
-          <>
-            <Lead>
-              To get one verse and its text, send a <Code>GET</Code> request to
-              this API endpoint. Put the <b>Bible ID</b> and the{" "}
-              <b>Verse ID</b> in the URL. For more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/verses">
-                Verses Guide
-              </Guide>
-              .
-            </Lead>
-            <Note>
-              The response contains the text of the verse in the{" "}
-              <Code>content</Code> field. The query parameters control the
-              format of this text. For more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/verses#verse-content">
-                Verse Content Guide
-              </Guide>
-              .
-            </Note>
-          </>
-        }
-      />
+      <InfoSection requestUrl={exchange?.request.url} />
 
       <QueryParamsSection params={queryParams} />
       <JSONSection json={body} exchange={exchange} />

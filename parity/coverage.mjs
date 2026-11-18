@@ -113,8 +113,7 @@ export const coverage = {
     params: {
       query: { sample: "Aaron" },
       limit: { sample: "25" },
-      //The demo counts pages of results. Page 1 with a limit of 25 is an offset of 25.
-      offset: { page: "page", sample: "1", expect: "25" },
+      offset: { sample: "25" },
       sort: { sample: "canonical" },
       range: { sample: "exo-deu" },
       fuzziness: { sample: "1" },

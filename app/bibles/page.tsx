@@ -1,4 +1,3 @@
-import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
@@ -86,37 +85,7 @@ export default async function BiblesPage(props: BiblesPageProps) {
           },
         ]}
       />
-      <InfoSection
-        title="How to Get Your Bibles"
-        url="https://rest.api.bible/v1/bibles"
-        requestUrl={exchange?.request.url}
-        info={
-          <>
-            <Lead>
-              To get the list of your Bibles, send a <Code>GET</Code> request to
-              this API endpoint. The response contains all the Bibles that your
-              API key can access. This includes Public Domain and Creative
-              Commons versions, and Bibles with a license from a{" "}
-              <b>Pro Plan</b>. For more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/bibles">
-                Bibles Guide
-              </Guide>
-              .
-            </Lead>
-            <Note>
-              Your plan controls the Bibles that you can access. The{" "}
-              <b>Starter Plan</b> gives access to Public Domain and Creative
-              Commons versions. The <b>Pro Plan</b> can include more
-              translations that have a license. For more information, refer to
-              the{" "}
-              <Guide href="https://api.bible/bibles">
-                Bible Versions Table
-              </Guide>
-              .
-            </Note>
-          </>
-        }
-      />
+      <InfoSection requestUrl={exchange?.request.url} />
 
       <QueryParamsSection params={queryParams} />
       <JSONSection json={body} exchange={exchange} />

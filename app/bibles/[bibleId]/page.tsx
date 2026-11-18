@@ -1,4 +1,3 @@
-import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
@@ -29,31 +28,7 @@ export default async function BiblePage(props: BiblePageProps) {
   return (
     <Page>
       <HeaderSection bible={bible} />
-      <InfoSection
-        title="How to Get the Data of One Bible"
-        url="https://rest.api.bible/v1/bibles/{bibleId}"
-        requestUrl={exchange?.request.url}
-        info={
-          <>
-            <Lead>
-              To get the data of one Bible, send a <Code>GET</Code> request to
-              this API endpoint. Put the <b>Bible ID</b> of the applicable Bible
-              in the URL. For more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/bibles">
-                Bibles Guide
-              </Guide>
-              .
-            </Lead>
-            <Note>
-              If you do not know the <b>Bible ID</b>, first{" "}
-              <Guide href="https://docs.api.bible/guides/bibles#fetching-your-available-bibles">
-                get the list of your Bibles
-              </Guide>
-              .
-            </Note>
-          </>
-        }
-      />
+      <InfoSection requestUrl={exchange?.request.url} />
 
       <JSONSection json={body} exchange={exchange} defaultOpen />
     </Page>

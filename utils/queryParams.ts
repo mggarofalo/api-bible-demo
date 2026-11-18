@@ -15,8 +15,7 @@ export type QueryParam = {
    * a list of Bibles to select from, as an alternative to a text box.
    */
   kind?: "bibles";
-  /** One sentence that tells the user what the parameter does */
-  description?: string;
+
   /** Value that the page uses when the page URL does not give one */
   defaultValue: string;
   /** Value in use now */
@@ -71,8 +70,6 @@ export const contentParams = (
       options: [],
       defaultValue: "",
       kind: "bibles" as const,
-      description:
-        "Get the same content from other Bibles in the same request. The response has one more item for each Bible.",
     },
   ].map((param) => ({
     ...param,

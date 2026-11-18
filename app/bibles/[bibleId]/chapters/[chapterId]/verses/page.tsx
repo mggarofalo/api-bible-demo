@@ -1,4 +1,3 @@
-import { Code, Guide, Lead, Note } from "@/components/InfoText";
 import { Page } from "@/components/Page";
 import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
@@ -33,32 +32,7 @@ export default async function VersesListPage(props: VersesListPageProps) {
   return (
     <Page>
       <HeaderSection bible={bible} />
-      <InfoSection
-        title="How to Get the Verses of a Chapter"
-        url="https://rest.api.bible/v1/bibles/{bibleId}/chapters/{chapterId}/verses"
-        requestUrl={exchange?.request.url}
-        info={
-          <>
-            <Lead>
-              To get the list of verses of a chapter, send a <Code>GET</Code>{" "}
-              request to this API endpoint. Put the <b>Bible ID</b> and the{" "}
-              <b>Chapter ID</b> in the URL. For more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/verses">
-                Verses Guide
-              </Guide>
-              .
-            </Lead>
-            <Note>
-              The <Code>/chapters</Code> endpoint can also give verse data. For
-              more information, refer to the{" "}
-              <Guide href="https://docs.api.bible/guides/chapters#fetching-a-list-of-chapters-for-a-book">
-                Chapters Guide
-              </Guide>
-              .
-            </Note>
-          </>
-        }
-      />
+      <InfoSection requestUrl={exchange?.request.url} />
 
       <JSONSection json={body} exchange={exchange} />
 

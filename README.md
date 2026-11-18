@@ -75,6 +75,8 @@ npm run parity:update   # gets the published reference and writes the snapshot a
 | 4. Reference  | The published reference and the snapshot (live)                                    | The API changed. Update the snapshot, then run the static checks    |
 | 5. Pages      | The API request that each page sends, with every parameter set (live)              | A control does not reach the API, or the API refuses a valid request |
 
+The help text of the demo is the text of the reference: the summary and the description of each endpoint, and the description of each parameter. The demo reads them from the snapshot and shows the words with no changes. Check 2 fails if the reference has no text for an endpoint or a parameter, check 4 fails if the published text changes, and check 5 fails if a page does not show the text.
+
 When the API changes, check 4 fails first. Run `npm run parity:update`, and then checks 1 to 3 list what the demo does not show yet. There are two ways to make them pass: add the page or the control and describe it in the manifest, or add a `deferred` reason to the manifest. Thus each gap is a decision that is in the repository, and not an omission.
 
 The demo calls the API through the [API.Bible SDK](https://www.npmjs.com/package/@americanbible/api-bible-sdk), but the SDK is not the authority. Where the API has a parameter that the SDK does not (at this time, `use-org-id`), the demo adds the parameter to the request (see `traced` in [utils/api.ts](./utils/api.ts)).

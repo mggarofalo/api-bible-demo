@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, ReactNode } from "react";
 import { BiblePicker, useBibleNav } from "./BibleNav";
-import { RESOURCE_TIPS, Tip } from "./EndpointNav";
+import { findEndpoint, resourceDefinition } from "@/utils/apiReference";
+import { Tip } from "./EndpointNav";
+import { Markdown } from "./Markdown";
 import { ReferencePicker } from "./ReferencePicker";
 
 type BibleBreadcrumbsProps = {
@@ -99,12 +101,16 @@ const ID_NAMES: Record<string, string> = {
  * Each word and each ID in the route has a dotted line below it. Move the pointer onto
  * one (or give it the focus) to see a help tip:
  *   - A word, for example `verses`: what that part of the Bible is, and how its ID is made.
- *   - An ID: its placeholder name, for example `{verseId}`. This shows the syntax of
- *     the route: `/bibles/{bibleId}/verses/{verseId}`.
+ *   - An ID: its placeholder name, for example `{verseId}`, and its description. This
+ *     shows the syntax of the route: `/bibles/{bibleId}/verses/{verseId}`.
+ *
+ * The text of the help tips comes from the API reference (see utils/apiReference.ts).
  */
 export const RouteHero = () => {
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  //The description of each ID in the path, from the API reference
+  const idDescriptions = findEndpoint(pathname)?.endpoint.pathParameters ?? {};
   const tipClass =
     "break-all cursor-help outline-none border-b-[1px] border-dotted border-current";
 
@@ -118,7 +124,15 @@ export const RouteHero = () => {
         const idName = ID_NAMES[parts[index - 1]];
         //A part is an ID when the part before it is a collection, and it is in an odd position (`/bibles/{bibleId}/books/{bookId}`)
         const isId = !!idName && index % 2 === 1;
-        const tip = isId ? `{${idName}}` : RESOURCE_TIPS[part];
+        const definition = isId ? undefined : resourceDefinition(part);
+        const tip = isId ? (
+          <>
+            <span className="block font-mono font-bold">{`{${idName}}`}</span>
+            {idDescriptions[idName]}
+          </>
+        ) : definition ? (
+          <Markdown inline text={definition} />
+        ) : null;
 
         return (
           <span key={index} className="flex items-baseline">

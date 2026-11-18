@@ -16,7 +16,9 @@
  *   1. Endpoints   Each endpoint of the reference is in the manifest, and each entry of
  *                  the manifest is an endpoint of the reference.
  *   2. Parameters  Each query parameter of each covered endpoint is in the manifest, and
- *                  the manifest has no parameter that the reference does not have.
+ *                  the manifest has no parameter that the reference does not have. The
+ *                  reference has a summary and a description for each endpoint, and a
+ *                  description for each parameter, because the demo shows them as help text.
  *   3. Source      For each covered endpoint, the demo has a page at the same path, and
  *                  the page calls the API. The source also contains the name of each
  *                  covered parameter, and each value of a parameter with fixed values.
@@ -33,6 +35,8 @@
  *                      that is the default of the API must be absent: the demo does
  *                      not send defaults.
  *                    - no parameter that the manifest does not have
+ *                  The page must also show the text of the reference: the summary and
+ *                  the description of the endpoint, and the description of each parameter.
  *
  * Options:
  *   --live               Also run the live checks.
@@ -78,7 +82,9 @@ const section = (title) => console.log(`\n${title}`);
  * Gets the published API reference and keeps only the data that the parity check
  * uses: each endpoint, its HTTP methods, and its query parameters. For a parameter
  * with fixed values, it keeps the values. For a parameter with a default value, it
- * keeps the default. The demo reads the defaults from the snapshot (utils/apiDefaults.ts).
+ * keeps the default. It also keeps the text: the summary and the description of each
+ * endpoint, and the description of each parameter. The demo reads the defaults and the
+ * help text from the snapshot (utils/apiReference.ts), so it shows the words of the reference.
  */
 const fetchReference = async () => {
   const response = await fetch(REFERENCE_URL, {
@@ -103,18 +109,33 @@ const fetchReference = async () => {
       .sort();
 
     const parameters = {};
+    const pathParameters = {};
     for (const method of methods) {
-      for (const parameter of (item[method].parameters ?? []).map(resolve)) {
+      for (const parameter of [
+        ...(item.parameters ?? []),
+        ...(item[method].parameters ?? []),
+      ].map(resolve)) {
+        if (parameter.in === "path" && parameter.description) {
+          pathParameters[parameter.name] = parameter.description.trim();
+        }
         if (parameter.in !== "query") continue;
         const values = parameter.schema?.enum ?? parameter.enum;
         const defaultValue = parameter.schema?.default;
         parameters[parameter.name] = {
           ...(values ? { values: values.map(String) } : {}),
           ...(defaultValue === undefined ? {} : { default: String(defaultValue) }),
+          ...(parameter.description ? { description: parameter.description.trim() } : {}),
         };
       }
     }
-    endpoints[path] = { methods, parameters };
+    const operation = item[methods[0]] ?? {};
+    endpoints[path] = {
+      methods,
+      ...(operation.summary ? { summary: operation.summary.trim() } : {}),
+      ...(operation.description ? { description: operation.description.trim() } : {}),
+      parameters,
+      ...(Object.keys(pathParameters).length ? { pathParameters } : {}),
+    };
   }
 
   return { source: REFERENCE_URL, version: document.info?.version ?? "", endpoints };
@@ -139,6 +160,15 @@ const referenceDifferences = (snapshot, published) => {
       differences.push(`${path} is no longer in the reference`);
       continue;
     }
+    if (before.summary !== after.summary) {
+      differences.push(`${path}: the summary changed to "${after.summary ?? ""}"`);
+    }
+    if (before.description !== after.description) {
+      differences.push(`${path}: the description changed`);
+    }
+    if (JSON.stringify(before.pathParameters ?? {}) !== JSON.stringify(after.pathParameters ?? {})) {
+      differences.push(`${path}: the description of an ID in the path changed`);
+    }
     if (before.methods.join() !== after.methods.join()) {
       differences.push(`${path} changed its methods to ${after.methods.join(", ")}`);
     }
@@ -151,7 +181,9 @@ const referenceDifferences = (snapshot, published) => {
       const is = after.parameters[name];
       if (!was) differences.push(`${path} has the new parameter "${name}"`);
       else if (!is) differences.push(`${path} no longer has the parameter "${name}"`);
-      else if (was.default !== is.default) {
+      else if (was.description !== is.description) {
+        differences.push(`${path}: the description of "${name}" changed`);
+      } else if (was.default !== is.default) {
         differences.push(
           `${path}: the default of "${name}" changed to ${is.default === undefined ? "no default" : `"${is.default}"`}`,
         );
@@ -247,7 +279,18 @@ for (const [path, entry] of covered) {
   for (const name of unknown) {
     fail(`${path}: the manifest has the parameter "${name}", but the reference does not`);
   }
-  if (!missing.length && !unknown.length) {
+  //The demo shows the text of the reference as its help text, so the text must be there
+  const noText = [
+    ...(endpoint.summary ? [] : ["the reference has no summary"]),
+    ...(endpoint.description ? [] : ["the reference has no description"]),
+    ...referenceParams
+      .filter((name) => !endpoint.parameters[name].description)
+      .map((name) => `the reference has no description for the parameter "${name}"`),
+  ];
+  for (const problem of noText) {
+    fail(`${path}: ${problem}, so the demo has no help text for it`);
+  }
+  if (!missing.length && !unknown.length && !noText.length) {
     const deferred = manifestParams.filter((name) => entry.params[name].deferred);
     pass(
       `${path} (${referenceParams.length ? referenceParams.join(", ") : "no parameters"})` +
@@ -305,6 +348,15 @@ const decodeHtml = (text) =>
     .replaceAll("&#x27;", "'")
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">");
+
+/** Removes the Markdown marks from text of the reference, to compare it with the text of a page */
+const decodeMarkdown = (text) =>
+  text
+    .replace(/\[([^\]]+)\]\([^)\s]+\)/g, "$1")
+    .replace(/[`*_\\]/g, "");
+
+/** Text with HTML entities decoded, Markdown marks removed and all spaces removed */
+const plainText = (text) => decodeHtml(text).replace(/[`*_\\]/g, "").replace(/\s+/g, "");
 
 const waitForDemo = async () => {
   const deadline = Date.now() + waitSeconds * 1000;
@@ -374,6 +426,23 @@ const checkPage = async (path, entry) => {
   for (const name of request.searchParams.keys()) {
     if (!params.some((param) => param.name === name)) {
       problems.push(`the API request has "${name}", which is not in the manifest`);
+    }
+  }
+
+  //The help text of the page must be the text of the reference
+  const pageText = plainText(html.replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<[^>]+>/g, " "));
+  const endpoint = reference.endpoints[path];
+  const shows = (text) => pageText.includes(plainText(decodeMarkdown(text)).slice(0, 80));
+  if (endpoint.summary && !shows(endpoint.summary)) {
+    problems.push(`the page does not show the summary of the reference ("${endpoint.summary}")`);
+  }
+  if (endpoint.description && !shows(endpoint.description.split(/\n\s*\n/)[0])) {
+    problems.push("the page does not show the description of the reference");
+  }
+  for (const { name } of params) {
+    const description = endpoint.parameters[name]?.description;
+    if (description && !shows(description)) {
+      problems.push(`the page does not show the description of "${name}" from the reference`);
     }
   }
 
