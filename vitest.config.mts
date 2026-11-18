@@ -38,6 +38,7 @@ export default defineConfig({
         "components/**/*.{ts,tsx}",
         "app/api/**/*.ts",
         "app/robots.ts",
+        "proxy.ts",
         "parity/**/*.mjs",
         "scripts/**/*.mjs",
       ],

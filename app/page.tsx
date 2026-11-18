@@ -4,10 +4,18 @@ import { LinkButton } from "@/components/LinkButton";
 import { TextSection } from "@/components/sections/TextSection";
 import { BookOpenText } from "lucide-react";
 import { Guide } from "@/components/InfoText";
+import { ApiKeyNotice } from "@/components/ApiKeyNotice";
+import { isApiKeySet } from "@/utils/apiKey";
+import { connection } from "next/server";
 
 /**
- * Home page of the application. */
+ * Home page of the application. When the API key is not set, it shows how to set the
+ * key, and it has no link to the demo. */
 export default async function HomePage() {
+  //Read the key for each request, not one time when the application is built
+  await connection();
+  const apiKeySet = isApiKeySet();
+
   return (
     <div className="flex flex-col">
       <HeaderSection
@@ -19,6 +27,7 @@ export default async function HomePage() {
           },
         ]}
       />
+      {!apiKeySet && <ApiKeyNotice />}
       <InfoSection
         title="What is API.Bible?"
         url="https://api.bible"
@@ -61,13 +70,19 @@ export default async function HomePage() {
           .
         </p>
         <div className="w-full flex justify-center mt-8">
-          <LinkButton
-            title="Start the Demo"
-            href="/bibles"
-            className="border-[1px] text-lg gap-4"
-          >
-            <BookOpenText size={16} />
-          </LinkButton>
+          {apiKeySet ? (
+            <LinkButton
+              title="Start the Demo"
+              href="/bibles"
+              className="border-[1px] text-lg gap-4"
+            >
+              <BookOpenText size={16} />
+            </LinkButton>
+          ) : (
+            <p className="text-sm font-bold">
+              Set the API key to start the demo.
+            </p>
+          )}
         </div>
       </TextSection>
     </div>

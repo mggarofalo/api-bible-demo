@@ -2,6 +2,7 @@ import { createBibleClient } from "@americanbible/api-bible-sdk";
 import { unstable_cache } from "next/cache";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { removeApiDefaults } from "./apiDefaults";
+import { getApiKey } from "./apiKey";
 
 /**
  * The HTTP request sent to API.Bible for a single call, and the response it returned
@@ -206,7 +207,9 @@ const recordingFetch: typeof fetch = async (input, init) => {
 };
 
 export const client = createBibleClient({
-  apiKey: process.env.API_BIBLE_API_KEY!,
+  //Without a key, the SDK throws an error here. The proxy (see proxy.ts) stops each
+  //request for a page or a route that uses this client before that occurs.
+  apiKey: getApiKey() ?? "",
   //Make one attempt per request. By default the SDK makes up to 3 attempts on
   //rate limits and server errors, which multiplies calls when the API is busy.
   retry: { maxAttempts: 1 },

@@ -118,7 +118,7 @@ npm run test:watch      # runs the tests again after each change
 npm run test:coverage   # runs the tests and measures the coverage
 ```
 
-The tests cover `utils`, `components`, the route handler in `app/api`, the coverage manifest and the logic of the parity check ([scripts/parity-lib.mjs](./scripts/parity-lib.mjs)). The pages in `app` are async server components. The live parity check tests them, not the unit tests.
+The tests cover `utils`, `components`, the route handler in `app/api`, the proxy ([proxy.ts](./proxy.ts)), the coverage manifest and the logic of the parity check ([scripts/parity-lib.mjs](./scripts/parity-lib.mjs)). The pages in `app` are async server components. The live parity check tests them, not the unit tests.
 
 `npm run test:coverage` fails when the coverage is less than the thresholds in [vitest.config.mts](./vitest.config.mts) (95%). There are two gates:
 
@@ -140,6 +140,8 @@ npm run dev
 ```
 
 4. Your application should now be running on `localhost:3000`
+
+If the API key is not set, the home page shows a notice with these steps, and the pages of the demo are not available: each request to `/bibles` and the paths below it goes to the home page. The key is not set when `API_BIBLE_API_KEY` is absent, is empty, or has the value of the example file. [utils/apiKey.ts](./utils/apiKey.ts) makes this decision, and [proxy.ts](./proxy.ts) stops the requests. After you change the `.env` file, stop the application and start it again.
 
 The lists of Bibles show a short list by default: the Bibles in [demoBibles.ts](./utils/demoBibles.ts). A switch on the Bibles page, and in the list of Bibles in the header, changes to all the Bibles that your API key can access. A Bible that is not in the short list stays available by its URL.
 
