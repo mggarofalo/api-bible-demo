@@ -22,21 +22,23 @@ import { ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 type FumsReporterProps = {
   /** The `meta.fumsToken` of the API response that the page shows */
   token?: string;
+  /** The response came from the cache of the demo, so the token was reported before */
+  cached?: boolean;
 };
 
 /**
  * Reports the FUMS token of a page each time the page shows. It has no content of its own.
  */
-export const FumsReporter = ({ token }: FumsReporterProps) => {
+export const FumsReporter = ({ token, cached = false }: FumsReporterProps) => {
   const pathname = usePathname();
 
   useEffect(() => {
     if (!token) {
       return;
     }
-    reportFumsToken(token, pathname);
+    reportFumsToken(token, pathname, cached);
     return () => leaveFumsPage(token);
-  }, [token, pathname]);
+  }, [token, pathname, cached]);
 
   return null;
 };
@@ -145,6 +147,12 @@ export const FumsPanel = () => {
             <ol className="flex flex-col gap-2">
               <Step done title="1. The API gave a token">
                 <code>meta.fumsToken</code> = {short(report.token)}
+                {report.cached && (
+                  <>
+                    <br />
+                    From a response in the cache. Each view is a report.
+                  </>
+                )}
               </Step>
               <Step done title="2. The page called the FUMS script">
                 <code>fums(&quot;trackView&quot;, token)</code>

@@ -48,6 +48,8 @@ export type FumsReport = {
   token: string;
   /** Path of the page that got the token */
   path: string;
+  /** The token came from a response in the cache of the demo */
+  cached: boolean;
   /** The request that the FUMS script sent, when the browser has recorded it */
   request?: {
     deviceId: string | null;
@@ -92,9 +94,10 @@ export const fumsStore = {
 /**
  * Reports the token of a response to FUMS, and records the report for the FUMS panel.
  * Call it each time a page that contains Scripture shows: a view of the same page
- * at a later time is a new view, and gets a new report.
+ * at a later time is a new view, and gets a new report. This is also true when the
+ * response came from the cache of the demo, because a person saw the text again.
  */
-export const reportFumsToken = (token: string, path: string) => {
+export const reportFumsToken = (token: string, path: string, cached: boolean) => {
   //In development, React runs each effect two times. Do not send the same view two times.
   const now = Date.now();
   const repeated = lastReport.token === token && now - lastReport.at < 1000;
@@ -106,7 +109,7 @@ export const reportFumsToken = (token: string, path: string) => {
       activeToken: token,
       reports: [
         ...state.reports,
-        { id: state.reports.length + 1, token, path },
+        { id: state.reports.length + 1, token, path, cached },
       ],
     });
   } else {

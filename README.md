@@ -53,6 +53,18 @@ Each page that calls the API shows, under its header:
 
 To move through a Bible, use the sidebar (the `>>` button at the top left), or click the Bible or the reference in the header. The reference opens a form that selects a book, a chapter, a verse or a range of verses.
 
+### Economy of API Calls
+
+The demo runs on the live API, so it makes as few calls as possible:
+
+- **Each different request calls the API one time.** The demo keeps each response in the data cache of Next.js for one day. A second view of the same page, or a different page that makes the same request, makes no call. The Response section of a page says when its response came from the cache. Set the `API_CACHE_SECONDS` environment variable to change the time. The value `0` stops the cache.
+- **Links do not prefetch.** A page makes calls only for itself.
+- **The sidebar gets the verses of a chapter only when it is open.**
+- **The demo makes one attempt for each request.** It does not try again after an error.
+- **`robots.txt` keeps crawlers away from URLs with query parameters**, and from the pages for each verse, passage, section and search.
+
+A view of a page that the demo saw before makes no call to the API. A first view of a verse or a chapter makes one call. The first page that a new server shows makes two more calls, for the list of Bibles and the list of books in the sidebar.
+
 ### Fair Use Reports (FUMS)
 
 API.Bible gives a `fumsToken` in the `meta` of each response that contains Scripture. A web application must send each token back to the [Fair Use Management System](https://docs.api.bible/resources/fair-use) (FUMS). The demo does this as the documentation says:

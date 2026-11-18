@@ -39,12 +39,13 @@ export const BibleSidebar = () => {
   const open = pinned || hovered;
   const loadVerses = nav?.loadVerses;
 
-  //The current chapter starts open, so its verses are necessary immediately
+  //The current chapter starts open in the list, so get its verses when the sidebar opens.
+  //A closed sidebar gets no verses, so a page view does not make a call that nobody sees.
   useEffect(() => {
-    if (current.chapterId) {
+    if (open && current.chapterId) {
       loadVerses?.(current.chapterId);
     }
-  }, [current.chapterId, loadVerses]);
+  }, [open, current.chapterId, loadVerses]);
 
   //Keep the current location in view. The sidebar scrolls independently of the page.
   useEffect(() => {

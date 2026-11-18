@@ -47,12 +47,23 @@ export const JSONSection = ({
   const url = exchange ? new URL(exchange.request.url) : null;
   const query = url ? [...url.searchParams] : [];
 
+  //Age of a response that came from the cache of the demo, as text
+  const cachedSeconds = exchange?.response.cachedSecondsAgo;
+  const cachedAge =
+    cachedSeconds === undefined
+      ? undefined
+      : cachedSeconds < 90
+        ? `${cachedSeconds} s ago`
+        : cachedSeconds < 5400
+          ? `${Math.round(cachedSeconds / 60)} min ago`
+          : `${Math.round(cachedSeconds / 3600)} h ago`;
+
   //A response that contains Scripture has a FUMS token, which the page must report
   const fumsToken = (json as { meta?: { fumsToken?: string } }).meta?.fumsToken;
 
   return (
     <>
-      <FumsReporter token={fumsToken} />
+      <FumsReporter token={fumsToken} cached={cachedSeconds !== undefined} />
       {!!exchange && !!url && (
         //The `data-` attributes let a script read the request that the page made (see scripts/parity.mjs)
         <div
@@ -87,7 +98,9 @@ export const JSONSection = ({
             summary={
               <p className="truncate font-mono">
                 {exchange.response.status} {exchange.response.statusText} ·{" "}
-                {exchange.response.durationMs} ms
+                {cachedAge === undefined
+                  ? `${exchange.response.durationMs} ms`
+                  : `from the cache (${cachedAge})`}
               </p>
             }
           >
@@ -96,6 +109,15 @@ export const JSONSection = ({
               <b>{exchange.response.status}</b> {exchange.response.statusText}{" "}
               in {exchange.response.durationMs} ms
             </p>
+            {cachedAge !== undefined && (
+              <>
+                <Label>Cache</Label>
+                <p className="text-sm">
+                  The demo got this response from the API {cachedAge}. It did
+                  not call the API for this view.
+                </p>
+              </>
+            )}
             <Label>Headers</Label>
             <Headers headers={exchange.response.headers} />
             <Label>Body</Label>

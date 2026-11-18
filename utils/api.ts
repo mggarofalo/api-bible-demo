@@ -1,4 +1,5 @@
 import { createBibleClient } from "@americanbible/api-bible-sdk";
+import { unstable_cache } from "next/cache";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { removeApiDefaults } from "./apiDefaults";
 
@@ -14,8 +15,14 @@ export type Exchange = {
   response: {
     status: number;
     statusText: string;
+    /** Time that the API took to answer, when the demo got the response from the API */
     durationMs: number;
     headers: [name: string, value: string][];
+    /**
+     * Set when the response came from the cache of the demo, and no call to the API
+     * was made for this page view. Gives the age of the response in seconds.
+     */
+    cachedSecondsAgo?: number;
   };
 };
 
@@ -25,17 +32,101 @@ type Trace = {
   recorded: { exchange: Exchange; body: unknown }[];
 };
 
+/** A response of the API in a form that the cache can keep */
+type StoredResponse = {
+  status: number;
+  statusText: string;
+  headers: [string, string][];
+  text: string;
+  durationMs: number;
+  /** Time of the call to the API, in milliseconds since 1970 */
+  fetchedAt: number;
+};
+
 //Headers whose values must never be shown on a page
 const SECRET_HEADERS = ["api-key", "authorization"];
+
+/**
+ * Time that the demo keeps a response of the API, in seconds. The default is one day:
+ * the text of a Bible changes very rarely. Set the `API_CACHE_SECONDS` environment
+ * variable to change it. The value 0 stops the cache.
+ */
+const CACHE_SECONDS = Number(process.env.API_CACHE_SECONDS ?? 60 * 60 * 24);
 
 //Holds the data of a single `traced` call, keeping concurrent page renders apart
 const traces = new AsyncLocalStorage<Trace>();
 
+/** Thrown for a response that must not go into the cache, such as an error from the API */
+class UncachedResponse extends Error {
+  constructor(readonly stored: StoredResponse) {
+    super("The response is not kept in the cache");
+  }
+}
+
+/** Calls the API and reads the full response */
+const callApi = async (
+  url: string,
+  init: RequestInit | undefined,
+): Promise<StoredResponse> => {
+  const started = performance.now();
+  const response = await fetch(url, init);
+  const text = await response.text();
+
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    headers: [...response.headers],
+    text,
+    durationMs: Math.round(performance.now() - started),
+    fetchedAt: Date.now(),
+  };
+};
+
 /**
- * Stand-in for `fetch` that the SDK uses for each request. It does three things:
+ * Gets the response for a request. Each different URL calls the API one time. After
+ * that, the response comes from the data cache of Next.js until it is `CACHE_SECONDS` old.
+ *
+ * This keeps the number of calls to the live API small. All the pages of the demo use
+ * it, so a request that two pages make (for example the list of verses of a chapter)
+ * calls the API one time only. An error from the API is not kept.
+ */
+const getResponse = async (
+  url: string,
+  init: RequestInit | undefined,
+): Promise<StoredResponse> => {
+  if (!CACHE_SECONDS) {
+    return callApi(url, init);
+  }
+
+  const cached = unstable_cache(
+    async () => {
+      const stored = await callApi(url, init);
+      if (stored.status < 200 || stored.status >= 300) {
+        throw new UncachedResponse(stored);
+      }
+      return stored;
+    },
+    //The URL contains the path and all the query parameters, so it identifies the request
+    ["api-bible", url],
+    { revalidate: CACHE_SECONDS },
+  );
+
+  try {
+    return await cached();
+  } catch (error) {
+    if (error instanceof UncachedResponse) {
+      return error.stored;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Stand-in for `fetch` that the SDK uses for each request. It does four things:
  *   - Adds the query parameters that the SDK cannot send (see `traced`).
  *   - Removes the query parameters that have the default value of the API, so each
  *     request shows only the parameters that change the response.
+ *   - Gets the response from the cache when the demo made the same request before.
  *   - Records the request and its response, when it is inside a `traced` call.
  */
 const recordingFetch: typeof fetch = async (input, init) => {
@@ -47,45 +138,54 @@ const recordingFetch: typeof fetch = async (input, init) => {
   }
   removeApiDefaults(url);
 
-  if (!trace) {
-    return fetch(url, init);
+  const asked = Date.now();
+  const stored = await getResponse(url.toString(), init);
+  //A response from before this call started came from the cache
+  const fromCache = stored.fetchedAt < asked;
+
+  if (trace) {
+    let body: unknown = stored.text;
+    try {
+      body = JSON.parse(stored.text);
+    } catch {
+      //Not JSON, keep the text
+    }
+
+    trace.recorded.push({
+      body,
+      exchange: {
+        request: {
+          method: init?.method ?? "GET",
+          url: url.toString(),
+          headers: [...new Headers(init?.headers)].map(([name, value]) => [
+            name,
+            SECRET_HEADERS.includes(name.toLowerCase())
+              ? "<your API key>"
+              : value,
+          ]),
+        },
+        response: {
+          status: stored.status,
+          statusText: stored.statusText,
+          durationMs: stored.durationMs,
+          headers: stored.headers,
+          ...(fromCache
+            ? { cachedSecondsAgo: Math.round((asked - stored.fetchedAt) / 1000) }
+            : {}),
+        },
+      },
+    });
   }
 
-  const request = new Request(url, init);
-  const started = performance.now();
-  const response = await fetch(url, init);
-  const durationMs = Math.round(performance.now() - started);
-
-  //Read a copy of the body, leaving the original response for the SDK
-  const text = await response.clone().text();
-  let body: unknown = text;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    //Not JSON, keep the text
-  }
-
-  trace.recorded.push({
-    body,
-    exchange: {
-      request: {
-        method: request.method,
-        url: request.url,
-        headers: [...request.headers].map(([name, value]) => [
-          name,
-          SECRET_HEADERS.includes(name.toLowerCase()) ? "<your API key>" : value,
-        ]),
-      },
-      response: {
-        status: response.status,
-        statusText: response.statusText,
-        durationMs,
-        headers: [...response.headers],
-      },
-    },
+  //The SDK reads the response as if it came from the API. Some statuses cannot have a body.
+  return new Response([204, 205, 304].includes(stored.status) ? null : stored.text, {
+    status: stored.status,
+    statusText: stored.statusText,
+    headers: stored.headers.filter(
+      //The text is not compressed now, so these headers of the API do not apply
+      ([name]) => !["content-encoding", "content-length"].includes(name.toLowerCase()),
+    ),
   });
-
-  return response;
 };
 
 export const client = createBibleClient({

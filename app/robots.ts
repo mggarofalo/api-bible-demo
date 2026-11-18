@@ -11,6 +11,10 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: ["/", "/bibles", "/bibles/*/books", "/bibles/*/books/*/chapters"],
       disallow: [
+        //A URL with query parameters is a different request to the API for each set of values
+        "/*?",
+        //The route that gives verse lists to the sidebar
+        "/api/",
         "/bibles/*/verses/",
         "/bibles/*/passages/",
         "/bibles/*/sections/",
