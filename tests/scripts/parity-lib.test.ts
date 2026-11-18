@@ -77,8 +77,20 @@ describe("parseOptions", () => {
     expect(parseOptions(["--base-url", "--wait"]).baseUrl).toBe("http://localhost:3000");
   });
 
-  it("gives NaN for a wait that is not a number", () => {
-    expect(parseOptions(["--wait=soon"]).waitSeconds).toBeNaN();
+  //A wait that is not a number made a deadline that never came: the live check did not stop
+  it.each(["soon", "", " ", "-1", "Infinity", "1e999"])(
+    'refuses "--wait=%s", which is not a number of seconds',
+    (wait) => {
+      expect(() => parseOptions([`--wait=${wait}`])).toThrow(/--wait must be a number/);
+    },
+  );
+
+  it.each([
+    ["0", 0],
+    ["1.5", 1.5],
+    ["60", 60],
+  ])('accepts "--wait=%s"', (wait, seconds) => {
+    expect(parseOptions([`--wait=${wait}`]).waitSeconds).toBe(seconds);
   });
 });
 

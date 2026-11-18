@@ -417,6 +417,7 @@ describe("ReferencePanel", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(select("Verse")).toBeDisabled();
     expect(openLink()).toHaveAttribute("href", "/bibles/b1/chapters/GEN.1");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
 
     //Select the chapter again: the next request succeeds
     fail = false;
@@ -426,11 +427,47 @@ describe("ReferencePanel", () => {
     expect(openLink()).toHaveAttribute("href", "/bibles/b1/verses/GEN.1.3");
   });
 
-  it.todo(
-    //Suspected bug: when the verses of the last chapter fail to load, the form says
-    //"Wait for the verses." with no end, and nothing loads them again (ReferencePicker.tsx:184)
-    "reports a failed load of the verses of the last chapter",
-  );
+  it("reports a failed load of the verses of the last chapter, and loads them again on request", async () => {
+    let fail = true;
+    stubFetch(async (chapterId) =>
+      chapterId === "GEN.3" && fail
+        ? { ok: false, status: 500, json: async () => ({}) }
+        : { ok: true, status: 200, json: async () => VERSES[chapterId] },
+    );
+    const user = userEvent.setup();
+    render(<ReferencePanel />, { wrapper: Provider });
+    await choose(user, "Book", "Genesis");
+    await choose(user, "Chapter", "1");
+    await choose(user, "Verse", "1");
+    await choose(user, "Last chapter", "3");
+
+    //The form does not wait with no end
+    expect(await screen.findByText("The verses did not load.")).toBeInTheDocument();
+    expect(screen.queryByText("Wait for the verses.")).not.toBeInTheDocument();
+    expect(openLink()).not.toBeInTheDocument();
+
+    fail = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByRole("link", { name: "Open" })).toHaveAttribute(
+      "href",
+      "/bibles/b1/passages/GEN.1.1-GEN.3.4",
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).includes("GEN.3")),
+    ).toHaveLength(2);
+  });
+
+  it("shows no control to try again when the verses load", async () => {
+    const user = userEvent.setup();
+    render(<ReferencePanel />, { wrapper: Provider });
+    await choose(user, "Book", "Genesis");
+    await choose(user, "Chapter", "1");
+    await choose(user, "Verse", "1");
+
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
 
   it("starts at the passage of the current page", async () => {
     navigation.params = { passageId: "GEN.1.2-GEN.3.1" };

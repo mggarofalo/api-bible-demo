@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    //The coverage report, and the worktrees of agents
+    "coverage/**",
+    ".claude/**",
   ]),
 ]);
 

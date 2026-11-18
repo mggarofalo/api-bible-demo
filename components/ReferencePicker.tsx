@@ -163,6 +163,10 @@ export const ReferencePanel = ({ onOpen }: ReferencePanelProps) => {
   }
 
   const { books, verses, bibleId } = nav;
+  //The chapters of the selection whose verses did not load
+  const failed = [...new Set([draft.chapter, endChapter])].filter(
+    (chapterId) => chapterId && verses[chapterId] === "error",
+  );
   const chapters = books.find(({ id }) => id === draft.book)?.chapters ?? [];
   const versesOf = (chapterId: string) => {
     const loaded = verses[chapterId];
@@ -263,8 +267,22 @@ export const ReferencePanel = ({ onOpen }: ReferencePanelProps) => {
           </span>
         )}
         <code className="min-w-0 text-xs text-zinc-500 break-all">
-          {target.href || (waiting ? "Wait for the verses." : "Select a book.")}
+          {target.href ||
+            (failed.length
+              ? "The verses did not load."
+              : waiting
+                ? "Wait for the verses."
+                : "Select a book.")}
         </code>
+        {failed.length > 0 && (
+          <button
+            type="button"
+            onClick={() => failed.forEach(nav.loadVerses)}
+            className="text-xs underline cursor-pointer hover:text-accent"
+          >
+            Try again
+          </button>
+        )}
       </div>
     </div>
   );

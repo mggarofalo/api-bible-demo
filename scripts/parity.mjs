@@ -70,7 +70,15 @@ const REFERENCE_URL = "https://rest.api.bible/v1/swagger.json";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const snapshotPath = join(root, "parity", "api-reference.json");
 
-const { live, update, baseUrl, waitSeconds } = parseOptions(process.argv.slice(2));
+const options = (() => {
+  try {
+    return parseOptions(process.argv.slice(2));
+  } catch (error) {
+    console.error(error.message);
+    process.exit(2);
+  }
+})();
+const { live, update, baseUrl, waitSeconds } = options;
 
 let failures = 0;
 let passes = 0;

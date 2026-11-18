@@ -41,11 +41,17 @@ export const parseOptions = (args) => {
   const option = (name, fallback) =>
     args.find((arg) => arg.startsWith(`--${name}=`))?.split("=").slice(1).join("=") ??
     fallback;
+  const wait = option("wait", "0");
+  const waitSeconds = Number(wait);
+  //A wait that is not a number gives a deadline that never comes
+  if (wait.trim() === "" || !Number.isFinite(waitSeconds) || waitSeconds < 0) {
+    throw new Error(`--wait must be a number of seconds, 0 or more. It was "${wait}".`);
+  }
   return {
     live: args.includes("--live"),
     update: args.includes("--update"),
     baseUrl: option("base-url", "http://localhost:3000").replace(/\/$/, ""),
-    waitSeconds: Number(option("wait", "0")),
+    waitSeconds,
   };
 };
 
