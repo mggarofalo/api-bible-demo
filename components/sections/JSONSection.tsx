@@ -1,4 +1,5 @@
 import type { Exchange } from "@/utils/api";
+import { FumsReporter } from "../FumsPanel";
 import { ExpandableSection } from "./ExpandableSection";
 import { JsonBodyLink, RAW_JSON_ID } from "./JsonBodyLink";
 
@@ -34,6 +35,9 @@ const Label = ({ children }: { children: string }) => (
 /**
  * Renders what went over the wire for an API call in expandable sections: the request,
  * the response, and the raw JSON body the response carried.
+ *
+ * If the response has a FUMS token (`meta.fumsToken`), this also reports the token to
+ * FUMS when the page shows (see utils/fums.ts).
  */
 export const JSONSection = ({
   json,
@@ -43,8 +47,12 @@ export const JSONSection = ({
   const url = exchange ? new URL(exchange.request.url) : null;
   const query = url ? [...url.searchParams] : [];
 
+  //A response that contains Scripture has a FUMS token, which the page must report
+  const fumsToken = (json as { meta?: { fumsToken?: string } }).meta?.fumsToken;
+
   return (
     <>
+      <FumsReporter token={fumsToken} />
       {!!exchange && !!url && (
         //The `data-` attributes let a script read the request that the page made (see scripts/parity.mjs)
         <div

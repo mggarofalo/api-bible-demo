@@ -5,6 +5,9 @@ import { Navbar } from "@/components/NavBar";
 import { Suspense } from "react";
 import PageLoader from "@/components/PageLoader";
 import { INITIAL_SETTINGS_SCRIPT } from "@/components/NavControls";
+import { FumsPanel } from "@/components/FumsPanel";
+import { FUMS_SCRIPT_URL, FUMS_SHIM_SCRIPT } from "@/utils/fums";
+import Script from "next/script";
 
 const ubuntu = Ubuntu({
   subsets: ["latin"],
@@ -43,6 +46,8 @@ export default function RootLayout({
       <head>
         {/* Sets the theme and the help setting before the page shows */}
         <script dangerouslySetInnerHTML={{ __html: INITIAL_SETTINGS_SCRIPT }} />
+        {/* FUMS: makes the `fums` function before the FUMS script loads (see utils/fums.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: FUMS_SHIM_SCRIPT }} />
       </head>
       <body className="w-full h-full flex flex-col items-center">
         {/* The page has a fixed width at each screen size, so it does not change with its content */}
@@ -52,6 +57,9 @@ export default function RootLayout({
             {children}
           </Suspense>
         </div>
+        {/* FUMS: the script that sends each report, and the panel that shows the reports */}
+        <Script src={FUMS_SCRIPT_URL} strategy="afterInteractive" />
+        <FumsPanel />
       </body>
     </html>
   );

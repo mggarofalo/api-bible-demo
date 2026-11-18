@@ -53,6 +53,16 @@ Each page that calls the API shows, under its header:
 
 To move through a Bible, use the sidebar (the `>>` button at the top left), or click the Bible or the reference in the header. The reference opens a form that selects a book, a chapter, a verse or a range of verses.
 
+### Fair Use Reports (FUMS)
+
+API.Bible gives a `fumsToken` in the `meta` of each response that contains Scripture. A web application must send each token back to the [Fair Use Management System](https://docs.api.bible/resources/fair-use) (FUMS). The demo does this as the documentation says:
+
+- The root layout loads the FUMS script (`https://pkg.api.bible/fumsV3.min.js`) and the small shim that makes the `fums` function before the script loads.
+- Each page that shows a response with a token calls `fums("trackView", token)` each time the page shows. See [utils/fums.ts](./utils/fums.ts).
+- The demo has no users, so it gives FUMS a fixed sample user ID. A real application gives the ID of the logged-in user, without personal data, or no ID.
+
+A small panel at the bottom right of the window shows each report as four steps: the token from the API, the call to the script, the IDs that the script added (device, session and user), and the request to the FUMS server. The reports are real reports for the API calls of your key.
+
 ### Keeping the Demo in Sync
 
 The demo must show all that the API can do, and continue to do so when the API changes. The authority is the [API reference](https://api.bible/api-reference) that API.Bible publishes, which is an OpenAPI document at `https://rest.api.bible/v1/swagger.json`. Three files make this a check that a machine can run:
@@ -105,5 +115,4 @@ The lists of Bibles show a short list by default: the Bibles in [demoBibles.ts](
 
 This application is still a work in progress. In the near future we hope to provide the following features:
 
-1. [FUMS](https://docs.api.bible/resources/fair-use) integration
-2. Audio Bible support
+1. Audio Bible support

@@ -35,6 +35,7 @@
  *                      that is the default of the API must be absent: the demo does
  *                      not send defaults.
  *                    - no parameter that the manifest does not have
+ *                  A page whose response has a FUMS token must load the FUMS script.
  *                  The page must also show the text of the reference: the summary and
  *                  the description of the endpoint, and the description of each parameter.
  *
@@ -427,6 +428,11 @@ const checkPage = async (path, entry) => {
     if (!params.some((param) => param.name === name)) {
       problems.push(`the API request has "${name}", which is not in the manifest`);
     }
+  }
+
+  //A response that contains Scripture has a FUMS token. The page must load the FUMS script to report it.
+  if (html.includes("fumsToken") && !html.includes("fumsV3.min.js")) {
+    problems.push("the response has a FUMS token, but the page does not load the FUMS script");
   }
 
   //The help text of the page must be the text of the reference
