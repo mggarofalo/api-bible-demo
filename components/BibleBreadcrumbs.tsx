@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, ReactNode } from "react";
 import { BiblePicker, useBibleNav } from "./BibleNav";
+import { RESOURCE_TIPS, Tip } from "./EndpointNav";
 import { ReferencePicker } from "./ReferencePicker";
 
 type BibleBreadcrumbsProps = {
@@ -95,13 +96,17 @@ const ID_NAMES: Record<string, string> = {
  * of the page. The routes of this application agree with the routes of the API, so the
  * route comes from the URL of the page.
  *
- * Each ID in the route has a dotted line below it. Move the pointer onto an ID (or give
- * it the focus) to see its placeholder name, for example `{bibleId}`. This shows the
- * syntax of the route: `/bibles/{bibleId}/verses/{verseId}`.
+ * Each word and each ID in the route has a dotted line below it. Move the pointer onto
+ * one (or give it the focus) to see a help tip:
+ *   - A word, for example `verses`: what that part of the Bible is, and how its ID is made.
+ *   - An ID: its placeholder name, for example `{verseId}`. This shows the syntax of
+ *     the route: `/bibles/{bibleId}/verses/{verseId}`.
  */
 export const RouteHero = () => {
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean).map(decodeURIComponent);
+  const tipClass =
+    "break-all cursor-help outline-none border-b-[1px] border-dotted border-current";
 
   return (
     <h3
@@ -113,23 +118,17 @@ export const RouteHero = () => {
         const idName = ID_NAMES[parts[index - 1]];
         //A part is an ID when the part before it is a collection, and it is in an odd position (`/bibles/{bibleId}/books/{bookId}`)
         const isId = !!idName && index % 2 === 1;
+        const tip = isId ? `{${idName}}` : RESOURCE_TIPS[part];
 
         return (
           <span key={index} className="flex items-baseline">
             /
-            {isId ? (
-              <span
-                tabIndex={0}
-                className="group relative break-all cursor-help outline-none border-b-[1px] border-dotted border-current"
-              >
-                {part}
-                <span
-                  role="tooltip"
-                  className="hidden group-hover:block group-focus:block absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-0.5 rounded text-xs font-normal whitespace-nowrap text-white bg-black"
-                >
-                  {`{${idName}}`}
+            {tip ? (
+              <Tip tip={tip}>
+                <span tabIndex={0} className={tipClass}>
+                  {part}
                 </span>
-              </span>
+              </Tip>
             ) : (
               part
             )}

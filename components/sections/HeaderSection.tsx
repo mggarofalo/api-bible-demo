@@ -1,5 +1,6 @@
 import { BibleBreadcrumbs, RouteHero } from "../BibleBreadcrumbs";
 import { BreadcrumbItem, Breadcrumbs } from "../Breadcrumbs";
+import { EndpointNav } from "../EndpointNav";
 import { Spacer } from "../Spacer";
 import { LinkButton, LinkButtonProps } from "../LinkButton";
 import { Bible } from "@americanbible/api-bible-sdk";
@@ -19,6 +20,7 @@ type HeaderProps = {
  *   - Breadcrumbs
  *   - The route of the API endpoint that the page calls, as the main heading
  *   - The name of the currently selected Bible, or a page title
+ *   - Links to each endpoint that applies to the current location
  *   - Buttons for related pages (if provided)
  */
 export const HeaderSection = ({
@@ -48,6 +50,8 @@ export const HeaderSection = ({
             ) : (
               <h3 className="text-2xl font-bold">{title}</h3>
             ))}
+          {/* Links to each endpoint for the current location. Shows on the pages of a Bible only. */}
+          {!!bible && <EndpointNav />}
           {!!items.length && (
             <div className="mt-4 flex gap-2 flex-col sm:flex-row sm:items-center  sm:flex-wrap">
               {items.map((item) => (

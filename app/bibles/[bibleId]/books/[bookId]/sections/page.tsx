@@ -25,12 +25,14 @@ export default async function BookSectionsListPage(
 
   //Get this bible from the list of bibles, fetched once from the `/bibles` endpoint
   const bible = await getDemoBible(bibleId);
-  //Fetch full list of sections for the given book from the `/bibles/{bibleId}/books/{bookId}/sections` endpoint
+  //Fetch full list of sections (if they exist) for the given book from the `/bibles/{bibleId}/books/{bookId}/sections` endpoint
   const {
     data: sections,
     exchange,
     body,
-  } = await traced(() => client.sections.listForBook(bibleId, bookId));
+  } = await traced(() => client.sections.listForBook(bibleId, bookId)).catch(
+    () => ({ data: [], exchange: undefined, body: { data: [] } }),
+  );
 
   return (
     <Page>

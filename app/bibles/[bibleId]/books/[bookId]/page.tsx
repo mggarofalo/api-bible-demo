@@ -5,10 +5,8 @@ import { InfoSection } from "@/components/sections/InfoSection";
 import { JSONSection } from "@/components/sections/JSONSection";
 import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
 import { client, traced } from "@/utils/api";
-import { hasSections } from "@/utils/demoBibles";
 import { getDemoBible } from "@/utils/getDemoBible";
 import { PageSearchParams, paramFlag, readParams } from "@/utils/queryParams";
-import { Book as BookIcon, BookText } from "lucide-react";
 
 type BookPageProps = {
   params: Promise<{ bibleId: string; bookId: string }>;
@@ -49,26 +47,7 @@ export default async function BookPage(props: BookPageProps) {
 
   return (
     <Page>
-      <HeaderSection
-        bible={bible}
-        actionItems={[
-          {
-            title: "Show the Chapters",
-            href: `/bibles/${bibleId}/books/${bookId}/chapters`,
-            children: <BookIcon size={16} />,
-          },
-          //Only link to sections for Bibles that include them
-          ...(hasSections(bibleId)
-            ? [
-                {
-                  title: "Show the Sections",
-                  href: `/bibles/${bibleId}/books/${bookId}/sections`,
-                  children: <BookText size={16} />,
-                },
-              ]
-            : []),
-        ]}
-      />
+      <HeaderSection bible={bible} />
       <InfoSection
         title="How to Get One Book"
         url="https://rest.api.bible/v1/bibles/{bibleId}/books/{bookId}"

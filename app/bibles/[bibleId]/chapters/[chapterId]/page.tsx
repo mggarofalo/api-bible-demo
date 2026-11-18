@@ -6,7 +6,6 @@ import { JSONSection } from "@/components/sections/JSONSection";
 import { QueryParamsSection } from "@/components/sections/QueryParamsSection";
 import { VerseContentSection } from "@/components/sections/VerseContentSection";
 import { client, traced } from "@/utils/api";
-import { hasSections } from "@/utils/demoBibles";
 import { getDemoBible } from "@/utils/getDemoBible";
 import {
   contentOptions,
@@ -15,7 +14,6 @@ import {
   readParams,
   toQueryString,
 } from "@/utils/queryParams";
-import { BookText, TextInitial } from "lucide-react";
 
 type ChapterPageProps = {
   params: Promise<{ bibleId: string; chapterId: string }>;
@@ -48,26 +46,7 @@ export default async function ChapterPage(props: ChapterPageProps) {
 
   return (
     <Page>
-      <HeaderSection
-        bible={bible}
-        actionItems={[
-          {
-            title: "Show the Verses",
-            href: `/bibles/${bibleId}/chapters/${chapterId}/verses`,
-            children: <TextInitial size={16} />,
-          },
-          //Only link to sections for Bibles that include them
-          ...(hasSections(bibleId)
-            ? [
-                {
-                  title: "Show the Sections",
-                  href: `/bibles/${bibleId}/chapters/${chapterId}/sections`,
-                  children: <BookText size={16} />,
-                },
-              ]
-            : []),
-        ]}
-      />
+      <HeaderSection bible={bible} />
 
       <InfoSection
         title="How to Get One Chapter"

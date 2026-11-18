@@ -4,7 +4,6 @@ import { HeaderSection } from "@/components/sections/HeaderSection";
 import { InfoSection } from "@/components/sections/InfoSection";
 import { JSONSection } from "@/components/sections/JSONSection";
 import { client, traced } from "@/utils/api";
-import { Book, Search } from "lucide-react";
 
 export const dynamic = "force-static";
 
@@ -29,21 +28,7 @@ export default async function BiblePage(props: BiblePageProps) {
 
   return (
     <Page>
-      <HeaderSection
-        bible={bible}
-        actionItems={[
-          {
-            title: "Show the Books",
-            href: `/bibles/${bible.id}/books`,
-            children: <Book size={16} />,
-          },
-          {
-            title: "Search",
-            href: `/bibles/${bible.id}/search`,
-            children: <Search size={16} />,
-          },
-        ]}
-      />
+      <HeaderSection bible={bible} />
       <InfoSection
         title="How to Get the Data of One Bible"
         url="https://rest.api.bible/v1/bibles/{bibleId}"
