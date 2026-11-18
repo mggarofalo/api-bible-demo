@@ -1,13 +1,14 @@
+import { BibleBreadcrumbs, EndpointPath } from "../BibleBreadcrumbs";
 import { BreadcrumbItem, Breadcrumbs } from "../Breadcrumbs";
 import { Spacer } from "../Spacer";
 import { LinkButton, LinkButtonProps } from "../LinkButton";
-import { ArrowDownUp } from "lucide-react";
 import { Bible } from "@americanbible/api-bible-sdk";
 
 type HeaderProps = {
   bible?: Bible;
   title?: string;
-  breadcrumbs: BreadcrumbItem[];
+  /** Shown on pages that are not part of a Bible. The pages of a Bible show lists as an alternative. */
+  breadcrumbs?: BreadcrumbItem[];
   actionItems?: LinkButtonProps[];
 };
 
@@ -18,34 +19,24 @@ type HeaderProps = {
  *   - A page title & subtitle (if provided)
  */
 export const HeaderSection = ({
-  breadcrumbs,
+  breadcrumbs = [],
   bible,
   title,
   actionItems = [],
 }: HeaderProps) => {
-  const items: LinkButtonProps[] = [];
-  if (bible) {
-    items.push({
-      title: "Switch Bibles",
-      href: "/bibles",
-      children: <ArrowDownUp size={16} />,
-    });
-  }
-  items.push(...actionItems);
+  const items = actionItems;
 
   return (
     <div className="w-full flex flex-col">
       <div className="w-full flex items-stretch border-black border-b-[1px] sm:pr-4">
         <Spacer />
         <div className="flex flex-col px-4 py-12 grow">
-          <Breadcrumbs items={breadcrumbs} />
+          <BibleBreadcrumbs fallback={<Breadcrumbs items={breadcrumbs} />} />
           <div className="flex gap-2 items-center">
             {!!bible && (
               <div className="flex flex-col grow">
-                <h3 className="text-2xl font-bold">
-                  {bible.name} ({bible.abbreviation})
-                </h3>
-                <p className="text-zinc-500">{bible.id}</p>
+                <h3 className="text-2xl font-bold">{bible.name}</h3>
+                <EndpointPath fallback={bible.id} />
               </div>
             )}
             {!!title && <h3 className="text-2xl font-bold">{title}</h3>}

@@ -1,5 +1,7 @@
-import { demoBibles } from "@/utils/demoBibles";
-import { notFound } from "next/navigation";
+import { BibleNavProvider } from "@/components/BibleNav";
+import { BibleSidebar } from "@/components/BibleSidebar";
+import { getBibles } from "@/utils/getDemoBible";
+import { getSidebarBooks } from "@/utils/getSidebarBooks";
 import { ReactNode } from "react";
 
 type BibleLayoutProps = {
@@ -8,8 +10,12 @@ type BibleLayoutProps = {
 };
 
 /**
- * Simple layout guard to protect against unauthorized Bible access for the live demo.
- * This file can be safely deleted when this application is run locally.
+ * Layout for all pages of one Bible. Adds the sidebar, and supplies the Bibles, books
+ * and chapters that the sidebar and the header lists show.
+ *
+ * In the live demo, this layout also stops access to Bibles that are not in
+ * demoBibles.ts. That check was removed here, so all Bibles that the API key can
+ * access are available.
  */
 export default async function BibleLayout({
   params,
@@ -17,9 +23,31 @@ export default async function BibleLayout({
 }: BibleLayoutProps) {
   const { bibleId } = await params;
 
-  if (!demoBibles.some(({ id }) => id === bibleId)) {
-    notFound();
+  //If this data is not available, show the page without the sidebar. The page reports the problem.
+  const [books, bibles] = await Promise.all([
+    getSidebarBooks(bibleId),
+    getBibles(),
+  ]).catch(() => [null, null]);
+
+  if (!books || !bibles) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  return (
+    <BibleNavProvider
+      key={bibleId}
+      bibleId={bibleId}
+      books={books}
+      //Keep only the data that the Bible list shows
+      bibles={bibles.map((bible) => ({
+        id: bible.id,
+        name: bible.name,
+        abbreviation: bible.abbreviation ?? "",
+        language: bible.language?.name ?? "",
+      }))}
+    >
+      <BibleSidebar />
+      {children}
+    </BibleNavProvider>
+  );
 }

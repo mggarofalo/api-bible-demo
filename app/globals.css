@@ -13,6 +13,13 @@ body {
   overflow-x: hidden;
 }
 
+/* When the sidebar is pinned, keep the page in the center of the space that remains */
+@media (min-width: 900px) {
+  body.sidebar-pinned {
+    padding-left: 280px;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

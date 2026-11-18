@@ -1,9 +1,23 @@
 import { Bible } from "@americanbible/api-bible-sdk";
 import { notFound } from "next/navigation";
 import { client } from "./api";
-import { demoBibles } from "./demoBibles";
 
 let demoBiblesRequest: Promise<Bible[]> | null = null;
+
+/**
+ * Returns every available Bible, fetched from the `/bibles` endpoint once per server.
+ */
+export function getBibles(): Promise<Bible[]> {
+  demoBiblesRequest ??= client.bibles
+    .list()
+    .then(({ data }) => data)
+    .catch((error) => {
+      demoBiblesRequest = null;
+      throw error;
+    });
+
+  return demoBiblesRequest;
+}
 
 /**
  * Returns a demo Bible's details, such as its name and abbreviation for page headers.
@@ -14,16 +28,7 @@ let demoBiblesRequest: Promise<Bible[]> | null = null;
  * server. A failed request isn't kept, so the next render tries again.
  */
 export async function getDemoBible(bibleId: string): Promise<Bible> {
-  //Fetch all demo bibles from the `/bibles` endpoint, once per server
-  demoBiblesRequest ??= client.bibles
-    .list({ ids: demoBibles.map(({ id }) => id) })
-    .then(({ data }) => data)
-    .catch((error) => {
-      demoBiblesRequest = null;
-      throw error;
-    });
-
-  const bible = (await demoBiblesRequest).find(({ id }) => id === bibleId);
+  const bible = (await getBibles()).find(({ id }) => id === bibleId);
   if (!bible) {
     notFound();
   }
