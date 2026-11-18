@@ -46,7 +46,12 @@ export const JSONSection = ({
   return (
     <>
       {!!exchange && !!url && (
-        <>
+        //The `data-` attributes let a script read the request that the page made (see scripts/parity.mjs)
+        <div
+          className="contents"
+          data-api-request={exchange.request.url}
+          data-api-status={exchange.response.status}
+        >
           <ExpandableSection
             title="Request"
             summary={
@@ -90,7 +95,7 @@ export const JSONSection = ({
               <JsonBodyLink />
             </p>
           </ExpandableSection>
-        </>
+        </div>
       )}
 
       <ExpandableSection

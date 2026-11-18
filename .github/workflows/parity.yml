@@ -1,0 +1,55 @@
+name: Parity
+
+# Keeps the demo in sync with the API.Bible SDK and the live API.
+#
+#   static  Runs on every push and pull request. Needs no secrets. Fails when the SDK
+#           has a method or parameter that the demo does not show (see parity/coverage.mjs).
+#           A dependency update that changes the SDK fails here, on its own pull request.
+#   live    Runs each night, and on request. Builds the demo, starts it, and checks that
+#           each page sends the API request that its controls describe. Fails when the
+#           live API and the SDK no longer agree. Needs the repository secret
+#           API_BIBLE_API_KEY.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run parity
+
+  live:
+    # Pull requests from forks cannot read secrets, so the live check does not run for them
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      API_BIBLE_API_KEY: ${{ secrets.API_BIBLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Start the demo
+        run: npm run start &
+      - name: Check each page against the live API
+        run: npm run parity:live -- --wait=60
